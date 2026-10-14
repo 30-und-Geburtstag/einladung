@@ -43,4 +43,4 @@ Version „Neue Version“ → Bereitstellen. Die URL bleibt gleich.
   Solange `web/config.js` keine API-URL enthält, läuft alles mit Beispieldaten.
 - Skript-Tests: `npm test`
 - Online stellen (GitHub Pages, Branch gh-pages = Inhalt von web/): `npm run veroeffentlichen`
-- Live: https://bandrixoriginal.github.io/einladung/ (Verwaltung: …/admin.html)
+- Live: https://30-und-geburtstag.github.io/einladung/ (Verwaltung: …/admin.html)
