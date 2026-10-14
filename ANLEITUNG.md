@@ -41,4 +41,6 @@ Version „Neue Version“ → Bereitstellen. Die URL bleibt gleich.
 
 - Vorschau: `npx http-server web -p 5180` → `http://localhost:5180/?c=demo1` bzw. `/admin.html` (Passwort `demo`).
   Solange `web/config.js` keine API-URL enthält, läuft alles mit Beispieldaten.
-- Skript-Tests: `node tools/test-apps-script.js`
+- Skript-Tests: `npm test`
+- Online stellen (GitHub Pages, Branch gh-pages = Inhalt von web/): `npm run veroeffentlichen`
+- Live: https://bandrixoriginal.github.io/einladung/ (Verwaltung: …/admin.html)

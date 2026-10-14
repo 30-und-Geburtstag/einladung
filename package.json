@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node tools/test-apps-script.js",
+    "veroeffentlichen": "git subtree split --prefix web -b gh-pages-neu && git push -f origin gh-pages-neu:gh-pages && git branch -D gh-pages-neu"
   },
   "keywords": [],
   "author": "",
