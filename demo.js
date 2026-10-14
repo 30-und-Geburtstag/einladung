@@ -1,7 +1,7 @@
 // Demo-Backend mit erfundenen Beispieldaten, aktiv solange in config.js keine API-Adresse steht.
 // Gast-Links zum Ausprobieren: ?c=demo1, ?c=demo2, ?c=demo3 – Admin-Passwort: demo
 (function () {
-  const SPEICHER = 'einladung-demo-v1';
+  const SPEICHER = 'einladung-demo-v2';
   const frage = (id, ebene, typ, text, optionen, pflicht, bedingung, hilfe = '', zielspalte = '') =>
     ({ id, aktiv: true, ebene, typ, frage: text, hilfe, optionen, pflicht, bedingung, zielspalte });
   const start = () => ({
@@ -12,12 +12,8 @@
       'Danketext': 'Danke für eure Rückmeldung! Ihr könnt sie über denselben Link jederzeit ändern.',
     },
     fragen: [
-      frage('ernaehrung', 'Person', 'auswahl', 'Ernährung', ['Keine Besonderheiten', 'Vegetarisch', 'Vegan', 'Sonstiges'], true, 'dabei', '', 'Ernährungsweise'),
-      frage('ernaehrung_sonst', 'Person', 'text', 'Was genau?', [], true, 'frage:ernaehrung=Sonstiges'),
-      frage('gluten', 'Person', 'ja_nein', 'Muss glutenfrei essen?', [], true, 'dabei', '', 'Glutenfrei?'),
-      frage('allergie', 'Person', 'ja_nein', 'Weitere Allergien oder Unverträglichkeiten?', [], true, 'dabei', '', 'Sonstige Allergien/Besonderheiten?'),
-      frage('allergie_details', 'Person', 'text', 'Welche?', [], true, 'frage:allergie=Ja', '', 'Details Allergien/Besonderheiten'),
-      frage('getraenke', 'Person', 'mehrfach', 'Lieblingsgetränke', ['Bier vom Fass', 'Radler', 'Alkoholfreies Bier', 'Wein', 'Sekt / Prosecco', 'Longdrinks', 'Softdrinks / Saft', 'Wasser', 'Kaffee / Tee'], false, 'dabei', 'Hilft uns bei der Getränkeplanung – gern mehrere ankreuzen.'),
+      frage('ernaehrung', 'Person', 'auswahl', 'Ernährung', ['Keine Besonderheiten', 'Vegan', 'Glutenfrei'], true, 'dabei', '', 'Ernährungsweise'),
+      frage('getraenke', 'Person', 'mehrfach', 'Lieblingsgetränke', ['Bier Helles', 'Bier Pils', 'Kellerbier', 'Radler', 'Weizen', 'Alkoholfreies Bier', 'Rotwein', 'Weißwein', 'Longdrinks', 'Softdrinks/Saft', 'Wasser Sprudel', 'Wasser still', 'Kaffee/Tee'], false, 'dabei', 'Hilft uns bei der Getränkeplanung – gern mehrere ankreuzen.'),
       frage('kind', 'Person', 'ja_nein', 'Ist ein Kind (unter 14 Jahren)?', [], false, 'dabei'),
       frage('kind_alter', 'Person', 'zahl', 'Alter', [], false, 'frage:kind=Ja'),
       frage('kuchen', 'Einladung', 'ja_nein', 'Möchtet ihr einen Kuchen zum Kaffee beisteuern?', [], false, 'nachmittag', 'Ganz freiwillig – für Kuchen ist auf jeden Fall gesorgt.'),
@@ -27,11 +23,12 @@
       frage('nachricht', 'Einladung', 'text', 'Möchtet ihr uns noch etwas mitteilen?', [], false, 'immer', '', 'Einladung Bemerkung'),
     ],
     einheiten: [
-      { id: 'E901', code: 'demo1', name: 'Max & Begleitung', umfang: 'Nachmittag + Abend', personen: [['P901', 'Max', 'Mustermann'], ['P902', 'Begleitung Max', '']] },
-      { id: 'E902', code: 'demo2', name: 'Erika', umfang: 'Nur Abend', personen: [['P903', 'Erika', 'Beispiel']] },
-      { id: 'E903', code: 'demo3', name: 'Familie Muster', umfang: 'Nur Nachmittag', personen: [['P904', 'Anna', 'Muster'], ['P905', 'Ben', 'Muster'], ['P906', 'Kind Anna', '']] },
+      { id: 'E901', code: 'demo1', name: 'Max & Begleitung', umfang: 'Nachmittag + Abend', liste: 'Hauptliste', telefon: '491701234567', personen: [['P901', 'Max', 'Mustermann'], ['P902', 'Begleitung Max', '']] },
+      { id: 'E902', code: 'demo2', name: 'Erika', umfang: 'Nur Abend', liste: 'Hauptliste', telefon: '491607654321', personen: [['P903', 'Erika', 'Beispiel']] },
+      { id: 'E903', code: 'demo3', name: 'Familie Muster', umfang: 'Nur Nachmittag', liste: 'Optional', telefon: '', personen: [['P904', 'Anna', 'Muster'], ['P905', 'Ben', 'Muster'], ['P906', 'Kind Anna', '']] },
     ],
     antworten: {},
+    versand: {},
   });
   const laden = () => { try { return JSON.parse(localStorage.getItem(SPEICHER)) || start(); } catch { return start(); } };
   const sichern = d => { try { localStorage.setItem(SPEICHER, JSON.stringify(d)); } catch { /* egal */ } };
@@ -81,6 +78,10 @@
         Object.entries(req.einstellungen).forEach(([k, v]) => { if (k !== 'Admin-Passwort' || String(v).trim()) st[k] = v; });
         sichern(d); break;
       case 'admin.codesErzeugen': break;
+      case 'admin.tabellenAktualisieren': break;
+      case 'admin.versandMarkieren':
+        req.ids.forEach(id => { if (req.zuruecksetzen) delete d.versand[id]; else d.versand[id] = { am: new Date().toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }), medium: req.medium }; });
+        sichern(d); break;
       case 'admin.daten': break;
       default: throw new Error('Unbekannte Aktion');
     }
@@ -94,13 +95,15 @@
         const personen = e.personen.map(([id, v, n]) => {
           const p = a?.personen.find(x => x.id === id);
           const def = t => new RegExp(t, 'i').test(e.umfang) ? (p?.[t] || 'Offen') : 'Nicht eingeladen';
-          return { name: (p?.name || `${v} ${n}`).trim(), umfang: e.umfang, nachmittag: def('nachmittag'), abend: def('abend'),
-            ernaehrung: p?.antworten?.ernaehrung || '', gluten: p?.antworten?.gluten || '' };
+          return { id, name: (p?.name || `${v} ${n}`).trim(), umfang: e.umfang, nachmittag: def('nachmittag'), abend: def('abend'),
+            antworten: p?.antworten || {} };
         });
         const zusagen = personen.filter(p => p.nachmittag === 'Ja' || p.abend === 'Ja').length;
         const status = !a ? 'Offen' : zusagen === personen.length ? 'Zugesagt' : zusagen ? 'Teilweise zugesagt' : 'Abgesagt';
-        return { id: e.id, name: e.name, code: e.code, link: link(d, e), status,
-          am: a ? new Date(a.zeit).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '', personen };
+        const v = d.versand[e.id];
+        return { id: e.id, name: e.name, code: e.code, link: link(d, e), status, listenstatus: e.liste, telefon: e.telefon,
+          versendet: !!v, versendetAm: v?.am || '', versendetVon: v ? 'Sonstige Person' : '', medium: v?.medium || '',
+          am: a ? new Date(a.zeit).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '', personen, antworten: a?.antworten || {} };
       }),
     };
   };

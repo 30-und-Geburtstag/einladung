@@ -22,11 +22,13 @@
   .tabelle .knoepfe { justify-content: flex-start; margin-top: 6px; }
 }
 
-.status { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 13px; border: 1px solid #555; white-space: nowrap; }
-.status.Zugesagt { border-color: #4d7a4a; color: var(--ok); }
-.status.Teilweise { border-color: #8a6a2e; color: var(--gold-hell); }
-.status.Abgesagt { border-color: #7a4a42; color: var(--fehler); }
-.status.Offen { color: var(--text2); }
+.status { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 13px; border: 1px solid #555; white-space: nowrap; font-weight: 500; }
+.status.offen { color: var(--text2); }
+.status.versandt { border-color: #8f7a1f; color: #f0d264; background: rgba(240, 210, 100, .1); }
+.status.zugesagt { border-color: #4d7a4a; color: #9fd59b; background: rgba(120, 200, 115, .12); }
+.status.teilweise { border-color: #4d7a4a; color: #c9e3a0; }
+.status.abgesagt { border-color: #7a4a42; color: #f0928a; background: rgba(240, 120, 110, .12); }
+.status.unsicher { border-color: #8a5a2e; color: #f0b070; }
 
 .filter { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
 .filter input { max-width: 260px; }
@@ -52,3 +54,20 @@
 .modal canvas { background: #fff; border-radius: 12px; max-width: 100%; }
 .vorlage { white-space: pre-wrap; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--gold); color: #1a1208; padding: 10px 18px; border-radius: 999px; z-index: 20; font-weight: 500; }
+
+.knopf.whatsapp { background: #25a35a; color: #fff; }
+.knopf.whatsapp:disabled { background: #2b3a31; color: #7c8c80; }
+.auswahlleiste { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 0 0 12px; padding: 10px 12px; background: var(--karte); border: 1px solid var(--linie); border-radius: var(--radius); }
+.auswahlleiste .whatsapp { margin-left: auto; }
+.tabelle input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--gold); }
+.tabelle tr.gewaehlt td { background: rgba(201, 154, 91, .08); }
+.tabelle.auswertung td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
+.tabelle.auswertung td.summe { color: var(--gold-hell); }
+.tabelle.auswertung th:not(:first-child) { text-align: right; }
+.tabelle.auswertung tr.leer td { color: #666; }
+@media (max-width: 700px) { .tabelle.auswertung thead { display: table-header-group; } .tabelle.auswertung tr { display: table-row; } .tabelle.auswertung td { display: table-cell; padding: 6px 4px; } }
+.antwortliste { margin: 4px 0 0; padding-left: 20px; }
+.antwortliste li { margin: 3px 0; }
+.modal.breit { max-width: 520px; }
+.anleitung { text-align: left; color: var(--text2); font-size: 15px; padding-left: 22px; }
+.knoepfe-mitte { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }

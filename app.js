@@ -40,13 +40,16 @@ const el = (tag, attrs = {}, ...kinder) => {
   return e;
 };
 
+/** Wie replaceChildren, lässt aber leere Werte (null, false, '') weg – sonst stünde „null“ auf der Seite. */
+const setzen = (ziel, ...kinder) => ziel.replaceChildren(...kinder.flat().filter(k => k != null && k !== false && k !== ''));
+
 const app = document.getElementById('app');
 const zustand = { daten: null, personen: [], antworten: {}, fehler: {}, gesendet: false, sendet: false };
 
 async function start() {
   const code = new URLSearchParams(location.search).get('c');
   if (!code) {
-    app.replaceChildren(el('div', { class: 'meldung warn mitte' },
+    setzen(app, el('div', { class: 'meldung warn mitte' },
       'Bitte öffnet die Seite über euren persönlichen Link oder den QR-Code auf eurer Einladung.'));
     return;
   }
@@ -64,7 +67,7 @@ async function start() {
     zustand.gesendet = !!d.einheit.gesendetAm;
     zeichnen();
   } catch (e) {
-    app.replaceChildren(el('div', { class: 'meldung warn mitte' }, e.message));
+    setzen(app, el('div', { class: 'meldung warn mitte' }, e.message));
   }
 }
 
@@ -77,11 +80,11 @@ function zeichnen() {
   const teile = [
     el('h2', {}, `Hallo ${daten.einheit.name} `, el('span', { class: 'herz' }, '♥')),
     st.begruessung && el('p', { class: 'mitte' }, st.begruessung),
-    st.anmeldeschluss && el('p', { class: 'mitte leise' }, `Bitte meldet euch bis zum ${st.anmeldeschluss} verbindlich an – auch wenn es leider nicht klappt.`),
+    st.anmeldeschluss && el('p', { class: 'mitte leise' }, `Bitte meldet euch bis zum ${st.anmeldeschluss} verbindlich an. Bitte schickt das Formular auch ab, wenn ihr leider nicht kommen könnt.`),
   ];
   if (!st.offen) {
     teile.push(el('div', { class: 'meldung warn mitte' }, 'Die Online-Anmeldung ist geschlossen. Bitte meldet euch direkt bei Aysel oder Robin.'));
-    app.replaceChildren(...teile, infoBloecke());
+    setzen(app, ...teile, infoBloecke());
     return;
   }
   daten.einheit.personen.forEach((p, i) => teile.push(personBlock(p, zustand.personen[i])));
@@ -97,7 +100,7 @@ function zeichnen() {
     anzahlFehler ? el('p', { class: 'fehler' }, 'Bitte ergänzt noch die markierten Angaben.') : null,
     el('button', { class: 'knopf', disabled: zustand.sendet, onclick: senden }, zustand.sendet ? 'Wird gesendet …' : 'Rückmeldung senden')));
   teile.push(infoBloecke());
-  app.replaceChildren(...teile);
+  setzen(app, ...teile);
 }
 
 function personBlock(p, a) {
@@ -230,7 +233,7 @@ function zeichneDanke() {
     if (p.abendEingeladen) teile.push('Abend ' + (wort[a.abend] || 'offen'));
     return el('li', {}, el('strong', {}, name), ' – ', teile.join(' · '));
   };
-  app.replaceChildren(
+  setzen(app, 
     el('h2', {}, 'Danke! ', el('span', { class: 'herz' }, '♥')),
     el('div', { class: 'meldung ok' },
       el('p', { style: 'margin-top:0' }, daten.einstellungen.danke),
@@ -244,14 +247,17 @@ function infoBloecke() {
   const karte = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Kirchberg 2, 63877 Sailauf');
   return el('section', { class: 'infos' },
     el('div', { class: 'block' }, el('div', { class: 'titel' }, 'Wann'),
-      'Samstag, 7. November 2026', el('br'), 'Kaffee & Kuchen 14–17 Uhr', el('br'), 'Buffet & Party ab 18 Uhr'),
+      'Samstag, 7. November 2026',
+      el('div', { class: 'zeitplan' },
+        el('span', {}, 'Kaffee & Kuchen'), el('span', { class: 'trenner', 'aria-hidden': 'true' }), el('span', {}, '14 bis 17 Uhr'),
+        el('span', {}, 'Buffet & Party'), el('span', { class: 'trenner', 'aria-hidden': 'true' }), el('span', {}, 'ab 18 Uhr'))),
     el('div', { class: 'block' }, el('div', { class: 'titel' }, 'Wo'),
       'Gewölbekeller im alten Pfarrhaus', el('br'), 'Kirchberg 2, 63877 Sailauf', el('br'),
       el('a', { href: karte, target: '_blank', rel: 'noopener' }, 'In Karten öffnen')),
     el('div', { class: 'block' }, el('div', { class: 'titel' }, 'Anfahrt'),
-      'Öffentliche Straßenparkplätze gibt es in der direkten Umgebung am Kirchberg und im Ortskern. Der Zugang zur Location ist nicht barrierefrei.'),
-    el('div', { class: 'block' }, el('div', { class: 'titel' }, 'Outfit'),
-      'Dirndl, Sari, Lederhose – Trachten aus aller Welt sind willkommen, das Lieblingsoutfit natürlich genauso.'));
+      'Öffentliche Straßenparkplätze gibt es in der direkten Umgebung am Kirchberg und im Ortskern. Bitte beachtet: Der Zugang zur Location ist nicht barrierefrei.'),
+    el('div', { class: 'block' }, el('div', { class: 'titel' }, 'Dresscode'),
+      'Dirndl, Sari, Lederhose – Trachten aus aller Welt sind willkommen – oder komm’ einfach in deinem Lieblingsoutfit.'));
 }
 
 if (app) start();
