@@ -1,0 +1,54 @@
+.rahmen.breit { max-width: 1000px; }
+.motto.klein { font-size: 40px; }
+
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin: 18px 0; border-bottom: 1px solid var(--linie); padding-bottom: 12px; }
+.tabs button { font: inherit; background: none; border: none; color: var(--text2); padding: 8px 14px; border-radius: 999px; cursor: pointer; font-size: 16px; }
+.tabs button[aria-selected="true"] { background: var(--gold); color: #1a1208; font-weight: 500; }
+
+.kacheln { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.kachel { background: var(--karte); border: 1px solid var(--linie); border-radius: var(--radius); padding: 14px; }
+.kachel .zahl { font-size: 30px; font-weight: 500; color: var(--gold-hell); line-height: 1.1; }
+.kachel .was { color: var(--text2); font-size: 14px; }
+
+.tabelle { width: 100%; border-collapse: collapse; font-size: 15px; }
+.tabelle th { text-align: left; font-weight: 500; color: var(--gold); border-bottom: 1px solid var(--linie); padding: 8px 6px; }
+.tabelle td { border-bottom: 1px solid #2a2a2a; padding: 8px 6px; vertical-align: top; }
+.tabelle .knoepfe { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.tabellen-huelle { overflow-x: auto; }
+@media (max-width: 700px) {
+  .tabelle thead { display: none; }
+  .tabelle tr { display: block; border-bottom: 1px solid var(--linie); padding: 8px 0; }
+  .tabelle td { display: block; border: none; padding: 2px 0; }
+  .tabelle .knoepfe { justify-content: flex-start; margin-top: 6px; }
+}
+
+.status { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 13px; border: 1px solid #555; white-space: nowrap; }
+.status.Zugesagt { border-color: #4d7a4a; color: var(--ok); }
+.status.Teilweise { border-color: #8a6a2e; color: var(--gold-hell); }
+.status.Abgesagt { border-color: #7a4a42; color: var(--fehler); }
+.status.Offen { color: var(--text2); }
+
+.filter { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.filter input { max-width: 260px; }
+
+.frage-edit { background: var(--karte); border: 1px solid var(--linie); border-radius: var(--radius); padding: 14px; margin: 12px 0; }
+.frage-edit.aus { opacity: .55; }
+.frage-edit .kopfzeile { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 10px; }
+.frage-edit .nr { color: var(--gold); font-weight: 500; }
+.raster { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+@media (max-width: 640px) { .raster { grid-template-columns: 1fr; } }
+.raster .ganz { grid-column: 1 / -1; }
+.raster label.l { display: block; font-size: 14px; color: var(--text2); margin-bottom: 3px; }
+.optionen-liste .opt { display: flex; gap: 6px; margin-bottom: 6px; }
+.haken { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
+.haken label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.haken input { width: 18px; height: 18px; accent-color: var(--gold); }
+
+.leiste { position: sticky; bottom: 0; background: linear-gradient(transparent, var(--bg) 30%); padding: 20px 0 10px; text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.ungespeichert { color: var(--gold-hell); font-size: 14px; width: 100%; }
+
+.modal-hg { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: grid; place-items: center; padding: 16px; z-index: 10; }
+.modal { background: var(--karte); border: 1.5px solid var(--gold); border-radius: var(--radius); padding: 20px; max-width: 420px; width: 100%; text-align: center; }
+.modal canvas { background: #fff; border-radius: 12px; max-width: 100%; }
+.vorlage { white-space: pre-wrap; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--gold); color: #1a1208; padding: 10px 18px; border-radius: 999px; z-index: 20; font-weight: 500; }
