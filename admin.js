@@ -200,7 +200,6 @@ function frageAuswertung(f, personen, einheiten) {
     const dabei = personen.filter(p => TEILNAHME_ARTEN.includes(p.teil) && hatWert(p.antworten?.[f.id]));
     if (auswahl) {
       const optionen = f.typ === 'ja_nein' ? ['Ja', 'Nein'] : [...f.optionen];
-      dabei.forEach(p => [].concat(p.antworten[f.id]).forEach(o => { if (!optionen.includes(o)) optionen.push(o); }));
       const n = (o, t) => dabei.filter(p => p.teil === t && treffer(p.antworten[f.id], o)).length;
       return el('div', {}, titel, el('div', { class: 'tabellen-huelle' }, el('table', { class: 'tabelle auswertung' },
         el('thead', {}, el('tr', {}, ['Antwort', 'Nur Nachm.', 'Nachm. + Abend', 'Nur Abend', 'Σ Nachmittag', 'Σ Abend', 'Gesamt'].map(t => el('th', {}, t)))),
@@ -215,7 +214,6 @@ function frageAuswertung(f, personen, einheiten) {
   const mitAntwort = einheiten.filter(x => hatWert(x.antworten?.[f.id]));
   if (auswahl) {
     const optionen = f.typ === 'ja_nein' ? ['Ja', 'Nein'] : [...f.optionen];
-    mitAntwort.forEach(x => [].concat(x.antworten[f.id]).forEach(o => { if (!optionen.includes(o)) optionen.push(o); }));
     return el('div', {}, titel, el('div', { class: 'kacheln' }, optionen.map(o =>
       el('div', { class: 'kachel' }, el('div', { class: 'zahl' }, String(mitAntwort.filter(x => treffer(x.antworten[f.id], o)).length)), el('div', { class: 'was' }, o)))),
       f.typ === 'ja_nein' ? antwortListe(mitAntwort.filter(x => x.antworten[f.id] === 'Ja').map(x => [x.name, 'Ja']), true) : null);
