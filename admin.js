@@ -11,7 +11,7 @@ const BEDINGUNGEN = { immer: 'Immer', dabei: 'Wenn dabei (Nachmittag oder Abend)
 const ORT_TEXT = 'Wir feiern im Gewölbekeller im alten Pfarrhaus, Kirchberg 2, 63877 Sailauf. Öffentliche Straßenparkplätze gibt es in der direkten Umgebung am Kirchberg und im Ortskern. Bitte beachtet: Der Zugang zur Location ist nicht barrierefrei.';
 const VORLAGEN = {
   'Begleittext Nur Nachmittag': `Hallo 💛
-unser Save the Date wird zur Einladung: Am 7. November feiern wir unsere Geburtstage und laden herzlich zu Kaffee und Kuchen von 15 bis 18 Uhr ein! 🥰
+unser Save the Date wird zur Einladung: Am 7. November feiern wir unsere Geburtstage und laden herzlich zu Kaffee und Kuchen von 14 bis 17 Uhr ein! 🥰
 
 Bitte gebt uns bis zum 21. Oktober 2026 verbindlich Bescheid, ob ihr dabei seid – auch wenn es leider nicht klappt. Über euren persönlichen Link oder den QR-Code auf der Karte könnt ihr für jede Person einzeln zu- oder absagen:
 {LINK}
@@ -22,9 +22,9 @@ Trachten aus aller Welt sind willkommen – das Lieblingsoutfit natürlich genau
 Wir freuen uns auf einen schönen Nachmittag zusammen!
 Aysel & Robin`,
   'Begleittext Nachmittag + Abend': `Hallo 💛
-unser Save the Date wird zur Einladung: Am 7. November feiern wir unsere Geburtstage – ab 15 Uhr mit Kaffee und Kuchen und ab 19 Uhr mit Buffet, Musik und Party! 🥂
+unser Save the Date wird zur Einladung: Am 7. November feiern wir unsere Geburtstage – ab 14 Uhr mit Kaffee und Kuchen und ab 18 Uhr mit Buffet, Musik und Party! 🥂
 
-Von 18 bis 19 Uhr bereiten wir alles für den Abend vor. Wer bleibt, darf natürlich vor Ort bleiben und wird auch in dieser Zeit weiter versorgt.
+Von 17 bis 18 Uhr bereiten wir alles für den Abend vor. Wer bleibt, darf natürlich vor Ort bleiben und wird auch in dieser Zeit weiter versorgt.
 
 Bitte gebt uns bis zum 21. Oktober 2026 verbindlich Bescheid, ob und wann ihr dabei seid – auch wenn es leider nicht klappt. Über euren persönlichen Link oder den QR-Code auf der Karte könnt ihr für jede Person einzeln angeben, ob sie am Nachmittag, am Abend oder bei beidem dabei ist:
 {LINK}
@@ -35,7 +35,7 @@ Trachten aus aller Welt sind willkommen – das Lieblingsoutfit natürlich genau
 Wir freuen uns aufs gemeinsame Feiern!
 Aysel & Robin`,
   'Begleittext Nur Abend': `Hallo 💛
-unser Save the Date wird zur Einladung: Am 7. November feiern wir unsere Geburtstage und laden herzlich ab 19 Uhr zu Buffet, Musik und Party ein! 🥂
+unser Save the Date wird zur Einladung: Am 7. November feiern wir unsere Geburtstage und laden herzlich ab 18 Uhr zu Buffet, Musik und Party ein! 🥂
 
 Bitte gebt uns bis zum 21. Oktober 2026 verbindlich Bescheid, ob ihr dabei seid – auch wenn es leider nicht klappt. Über euren persönlichen Link oder den QR-Code auf der Karte könnt ihr für jede Person einzeln zu- oder absagen:
 {LINK}
@@ -46,8 +46,12 @@ Trachten aus aller Welt sind willkommen – das Lieblingsoutfit natürlich genau
 Wir freuen uns auf einen schönen Abend zusammen!
 Aysel & Robin`,
 };
-// Kaffee & Kuchen beginnt um 15 statt 14 Uhr – gilt auch für bereits gespeicherte Begleittexte.
-const neueZeiten = t => String(t).replaceAll('14 bis 18 Uhr', '15 bis 18 Uhr').replaceAll('ab 14 Uhr mit Kaffee', 'ab 15 Uhr mit Kaffee');
+// Zeiten: Kaffee & Kuchen 14–17 Uhr, Buffet & Party ab 18 Uhr – korrigiert auch bereits im Sheet gespeicherte Begleittexte.
+const neueZeiten = t => String(t)
+  .replace(/Von 18 bis 19 Uhr bereiten/g, 'Von 17 bis 18 Uhr bereiten')
+  .replace(/1[45] bis 18 Uhr/g, '14 bis 17 Uhr')
+  .replace(/ab 1[45] Uhr mit Kaffee/g, 'ab 14 Uhr mit Kaffee')
+  .replace(/ab 19 Uhr/g, 'ab 18 Uhr');
 
 const EINSTELLUNGEN_FELDER = [
   ['Formular offen', 'jn', 'Wenn „Nein“, können Gäste nichts mehr eintragen (z. B. nach dem Anmeldeschluss).'],

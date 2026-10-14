@@ -116,8 +116,8 @@ function personBlock(p, a) {
       el('input', { type: 'text', id: 'name-' + p.id, value: a.name, placeholder: 'Vor- und Nachname', autocomplete: 'off',
         oninput: e => { a.name = e.target.value; } }),
       zustand.fehler[p.id + ':name'] ? el('div', { class: 'fehler' }, 'Bitte tragt den Namen ein.') : null) : null,
-    p.nachmittagEingeladen ? teil('nachmittag', 'Kaffee & Kuchen', '· 15 bis 18 Uhr') : null,
-    p.abendEingeladen ? teil('abend', 'Buffet & Party', '· ab 19 Uhr') : null,
+    p.nachmittagEingeladen ? teil('nachmittag', 'Kaffee & Kuchen', '· 14 bis 17 Uhr') : null,
+    p.abendEingeladen ? teil('abend', 'Buffet & Party', '· ab 18 Uhr') : null,
     fehltTeil ? el('div', { class: 'fehler' }, 'Bitte gebt an, ob diese Person dabei ist.') : null,
     sichtbareFragen('Person', ctx).map(f => frageFeld(f, a.antworten, p.id)));
 }
@@ -244,7 +244,7 @@ function infoBloecke() {
   const karte = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Kirchberg 2, 63877 Sailauf');
   return el('section', { class: 'infos' },
     el('div', { class: 'block' }, el('div', { class: 'titel' }, 'Wann'),
-      'Samstag, 7. November 2026', el('br'), 'Kaffee & Kuchen 15–18 Uhr', el('br'), 'Buffet & Party ab 19 Uhr'),
+      'Samstag, 7. November 2026', el('br'), 'Kaffee & Kuchen 14–17 Uhr', el('br'), 'Buffet & Party ab 18 Uhr'),
     el('div', { class: 'block' }, el('div', { class: 'titel' }, 'Wo'),
       'Gewölbekeller im alten Pfarrhaus', el('br'), 'Kirchberg 2, 63877 Sailauf', el('br'),
       el('a', { href: karte, target: '_blank', rel: 'noopener' }, 'In Karten öffnen')),
