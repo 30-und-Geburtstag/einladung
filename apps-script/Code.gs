@@ -603,7 +603,6 @@ function auswertungSchreiben_(ss, fragen, personen, antwortVon, letzte) {
       const daten = Object.keys(antwortVon).map(id => antwortVon[id])
         .map(a => ({ t: teilnahme_(a.nachmittag, a.abend), w: (a.antworten || {})[f.id] }))
         .filter(x => TEILNAHME_ARTEN.indexOf(x.t) >= 0 && x.w !== undefined && x.w !== '');
-      daten.forEach(x => [].concat(x.w).forEach(o => { if (optionen.indexOf(o) < 0) optionen.push(o); }));
       optionen.forEach(o => {
         const n = t => daten.filter(x => x.t === t && treffer(x.w, o)).length;
         const nN = n('Nur Nachmittag'), nNA = n('Nachmittag + Abend'), nA = n('Nur Abend');
@@ -613,7 +612,6 @@ function auswertungSchreiben_(ss, fragen, personen, antwortVon, letzte) {
       titel.push(zeile([f.frage + ' (pro Einladung)']));
       koepfe.push([zeile(['Antwort', 'Einladungen']), 2]);
       const werte = Object.keys(letzte).map(id => (letzte[id].daten.antworten || {})[f.id]).filter(w => w !== undefined && w !== '');
-      werte.forEach(w => [].concat(w).forEach(o => { if (optionen.indexOf(o) < 0) optionen.push(o); }));
       optionen.forEach(o => zeile([o, werte.filter(w => treffer(w, o)).length]));
     }
     zeile([]);
