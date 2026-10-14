@@ -31,7 +31,20 @@ const SP = {
   rueckmeldungUeber: 'Einladung Rückmeldung über',
   code: 'Einladungs-Code',
   link: 'Persönlicher Link',
+  telefon: 'Telefonnummer',
+  listenstatusPerson: 'Listenstatus',
+  listenstatusEinheit: 'Listenstatus (automatisch)',
+  versendet: 'Einladung versendet?',
+  versendetAm: 'Einladung versendet am',
+  versendetVon: 'Einladung versendet von',
+  medium: 'Einladung Medium',
 };
+
+const BLATT_AUSWERTUNG = 'App-Auswertung';
+// Optik wie die Ursprungstabelle (Kopfzeile in Akzentfarbe, Zeilen abwechselnd hellblau/weiß)
+const FARBE_KOPF = '#156082';
+const FARBE_BAND = '#C1E4F5';
+const TEILNAHME_ARTEN = ['Nur Nachmittag', 'Nachmittag + Abend', 'Nur Abend'];
 
 const FRAGEN_KOPF = ['ID', 'Aktiv', 'Ebene', 'Typ', 'Frage', 'Hilfetext', 'Optionen', 'Pflicht', 'Bedingung', 'Zielspalte'];
 
@@ -93,6 +106,7 @@ function einrichten() {
     }
   });
   const anzahl = codesErzeugen_();
+  antwortBlaetterNeuAufbauen_();
   SpreadsheetApp.getUi && Logger.log('Fertig. Codes für ' + anzahl + ' Einladungseinheiten vorhanden. Admin-Passwort steht im Blatt "' + BLATT_EINSTELLUNGEN + '".');
 }
 
@@ -153,7 +167,9 @@ const AKTIONEN = {
   'gast.senden': req => gastSenden_(req),
   'admin.login': () => ({}),
   'admin.daten': () => adminDaten_(),
-  'admin.fragenSpeichern': req => { fragenSpeichern_(req.fragen); return { fragen: alleFragen_() }; },
+  'admin.fragenSpeichern': req => { fragenSpeichern_(req.fragen); antwortBlaetterNeuAufbauen_(); return { fragen: alleFragen_() }; },
+  'admin.versandMarkieren': req => { versandMarkieren_(req.ids, req.medium, req.zuruecksetzen); return adminDaten_(); },
+  'admin.tabellenAktualisieren': () => { antwortBlaetterNeuAufbauen_(); return adminDaten_(); },
   'admin.einstellungenSpeichern': req => { einstellungenSpeichern_(req.einstellungen); codesErzeugen_(); return adminDaten_(); },
   'admin.codesErzeugen': () => { codesErzeugen_(); return adminDaten_(); },
 };
@@ -286,22 +302,11 @@ function gastSenden_(req) {
       zelle_(shE, kopfE, einheit.zeile, f.zielspalte, sichtbar ? wertText_(antwortenE[f.id]) : '');
     });
 
-    // Antwortblätter (je Person / je Einladung eine aktuelle Zeile)
-    const fP = fragen.filter(f => f.ebene === 'Person'), fE = fragen.filter(f => f.ebene === 'Einladung');
-    sauber.forEach(p => {
-      const werte = { 'Zeitstempel': jetzt, 'Einladungseinheit-ID': einheit.id, 'Person-ID': p.id,
-        'Name': p.name || (p.vorname + ' ' + p.nachname).trim(), 'Nachmittag': p.nachmittag, 'Abend': p.abend };
-      fP.forEach(f => { werte[spaltenName_(f)] = wertText_(p.antworten[f.id]); });
-      zeileSchreiben_(BLATT_ANTW_PERSONEN, 'Person-ID', p.id, werte);
-    });
-    const werteE = { 'Zeitstempel': jetzt, 'Einladungseinheit-ID': einheit.id, 'Bezeichnung': einheit.name };
-    fE.forEach(f => { werteE[spaltenName_(f)] = wertText_(antwortenE[f.id]); });
-    zeileSchreiben_(BLATT_ANTW_EINHEITEN, 'Einladungseinheit-ID', einheit.id, werteE);
-
     blatt_(BLATT_PROTOKOLL).appendRow([jetzt, einheit.id, JSON.stringify({
       personen: sauber.map(p => ({ id: p.id, name: p.name, nachmittag: p.nachmittag, abend: p.abend, antworten: p.antworten })),
       antworten: antwortenE,
     })]);
+    antwortBlaetterNeuAufbauen_();
     return { status };
   } finally {
     lock.releaseLock();
@@ -404,37 +409,222 @@ function einstellungenSpeichern_(neu) {
 // ---------------------------------------------------------------- Admin
 
 function adminDaten_() {
+  const personen = allePersonen_();
+  const letzte = letzteAntworten_();
   const shE = blatt_(BLATT_EINHEITEN), kopfE = kopfzeile_(shE);
   const datenE = shE.getRange(2, 1, Math.max(shE.getLastRow() - 1, 1), kopfE.length).getValues();
   const k = n => kopfE.indexOf(n);
-  const shP = blatt_(BLATT_PERSONEN), kopfP = kopfzeile_(shP);
-  const datenP = shP.getRange(2, 1, Math.max(shP.getLastRow() - 1, 1), kopfP.length).getValues();
-  const kp = n => kopfP.indexOf(n);
-
-  const personenJeEinheit = {};
-  datenP.forEach(r => {
-    if (!r[kp(SP.vorname)]) return;
-    const id = r[kp(SP.einheitId)];
-    (personenJeEinheit[id] = personenJeEinheit[id] || []).push({
-      name: (r[kp(SP.vorname)] + ' ' + (r[kp(SP.nachname)] || '')).trim(),
-      umfang: r[kp(SP.umfang)], nachmittag: r[kp(SP.nachmittag)], abend: r[kp(SP.abend)],
-      ernaehrung: r[kp('Ernährungsweise')], gluten: r[kp('Glutenfrei?')],
-    });
+  const wert = (r, n) => k(n) >= 0 ? r[k(n)] : '';
+  const antwortVon = {};
+  Object.keys(letzte).forEach(id => (letzte[id].daten.personen || []).forEach(p => { antwortVon[p.id] = p; }));
+  const einheiten = datenE.filter(r => wert(r, SP.bezeichnung)).map(r => {
+    const id = wert(r, SP.einheitId);
+    const ps = personen.filter(p => p.einheit === id);
+    return {
+      id, name: wert(r, SP.bezeichnung), code: wert(r, SP.code), link: wert(r, SP.link),
+      listenstatus: wert(r, SP.listenstatusEinheit) || (ps[0] ? ps[0].listenstatus : ''),
+      status: wert(r, SP.rueckmeldung) || 'Offen', am: datumText_(wert(r, SP.rueckmeldungAm)),
+      versendet: String(wert(r, SP.versendet)).toLowerCase() === 'ja', versendetAm: datumText_(wert(r, SP.versendetAm)),
+      versendetVon: wert(r, SP.versendetVon), medium: wert(r, SP.medium),
+      // oberste Telefonnummer der Einladung
+      telefon: ps.map(p => telefonNormal_(p.telefon)).filter(Boolean)[0] || '',
+      personen: ps.map(p => ({ id: p.id, name: p.anzeigeName, umfang: p.umfang, nachmittag: p.nachmittag, abend: p.abend,
+        antworten: antwortVon[p.id] ? antwortVon[p.id].antworten || {} : {} })),
+      antworten: letzte[id] ? letzte[id].daten.antworten || {} : {},
+    };
   });
-  const einheiten = datenE.filter(r => r[k(SP.bezeichnung)]).map(r => ({
-    id: r[k(SP.einheitId)], name: r[k(SP.bezeichnung)], code: r[k(SP.code)], link: r[k(SP.link)],
-    status: r[k(SP.rueckmeldung)] || 'Offen',
-    am: r[k(SP.rueckmeldungAm)] instanceof Date ? Utilities.formatDate(r[k(SP.rueckmeldungAm)], 'Europe/Berlin', 'dd.MM.yyyy HH:mm') : '',
-    personen: personenJeEinheit[r[k(SP.einheitId)]] || [],
-  }));
-  const st = einstellungen_();
   return {
     einheiten,
     fragen: alleFragen_(),
-    einstellungen: st,
-    spaltenPerson: kopfP.filter(Boolean),
+    einstellungen: einstellungen_(),
+    spaltenPerson: kopfzeile_(blatt_(BLATT_PERSONEN)).filter(Boolean),
     spaltenEinladung: kopfE.filter(Boolean),
   };
+}
+
+function datumText_(d) {
+  return d instanceof Date ? Utilities.formatDate(d, 'Europe/Berlin', 'dd.MM.yyyy HH:mm') : String(d || '');
+}
+
+function telefonNormal_(t) {
+  let s = String(t || '').replace(/[^\d+]/g, '');
+  if (!s) return '';
+  if (s.indexOf('+') === 0) s = s.slice(1);
+  else if (s.indexOf('00') === 0) s = s.slice(2);
+  else if (s.indexOf('0') === 0) s = '49' + s.slice(1);
+  return s.replace(/\D/g, '');
+}
+
+/** Trägt in „Versand & Einladungen“ ein, dass die Einladung über die Website verschickt wurde (oder setzt es zurück). */
+function versandMarkieren_(ids, medium, zuruecksetzen) {
+  const sh = blatt_(BLATT_EINHEITEN), kopf = kopfzeile_(sh);
+  const n = sh.getLastRow() - 1;
+  if (n < 1) return;
+  const gesucht = {};
+  (ids || []).forEach(id => { gesucht[id] = true; });
+  const jetzt = new Date();
+  sh.getRange(2, kopf.indexOf(SP.einheitId) + 1, n, 1).getValues().forEach((r, i) => {
+    if (!gesucht[r[0]]) return;
+    const zeile = i + 2;
+    zelle_(sh, kopf, zeile, SP.versendet, zuruecksetzen ? 'Nein' : 'Ja');
+    zelle_(sh, kopf, zeile, SP.versendetAm, zuruecksetzen ? '' : jetzt);
+    zelle_(sh, kopf, zeile, SP.versendetVon, zuruecksetzen ? '' : 'Sonstige Person');
+    zelle_(sh, kopf, zeile, SP.medium, zuruecksetzen ? '' : (medium || 'WhatsApp'));
+  });
+}
+
+// ---------------------------------------------------------------- Antwortblätter & Auswertung
+
+function allePersonen_() {
+  const sh = blatt_(BLATT_PERSONEN), kopf = kopfzeile_(sh);
+  const daten = sh.getRange(2, 1, Math.max(sh.getLastRow() - 1, 1), kopf.length).getValues();
+  const wert = (r, n) => kopf.indexOf(n) >= 0 ? r[kopf.indexOf(n)] : '';
+  return daten.filter(r => wert(r, SP.vorname)).map(r => {
+    const vorname = String(wert(r, SP.vorname)), nachname = String(wert(r, SP.nachname) || '');
+    const m = String(wert(r, SP.bemerkungPerson) || '').match(/Name laut Anmeldung: (.+)/);
+    return {
+      id: String(wert(r, SP.personId)), einheit: wert(r, SP.einheitId), vorname, nachname,
+      anzeigeName: istPlatzhalter_(vorname) && m ? m[1].trim() + ' (' + vorname + ')' : (vorname + ' ' + nachname).trim(),
+      umfang: String(wert(r, SP.umfang) || ''), listenstatus: wert(r, SP.listenstatusPerson), telefon: wert(r, SP.telefon),
+      nachmittag: wert(r, SP.nachmittag) || 'Offen', abend: wert(r, SP.abend) || 'Offen',
+    };
+  });
+}
+
+/** Letzte gespeicherte Rückmeldung je Einladung aus dem Protokoll. */
+function letzteAntworten_() {
+  const sh = blatt_(BLATT_PROTOKOLL);
+  const n = sh.getLastRow() - 1;
+  const out = {};
+  if (n < 1) return out;
+  sh.getRange(2, 1, n, 3).getValues().forEach(r => {
+    if (!r[1]) return;
+    try { out[r[1]] = { zeit: r[0], daten: JSON.parse(r[2]) }; } catch (e) { /* kaputte Zeile überspringen */ }
+  });
+  return out;
+}
+
+function teilnahme_(nm, ab) {
+  if (nm === 'Ja' && ab === 'Ja') return 'Nachmittag + Abend';
+  if (nm === 'Ja') return 'Nur Nachmittag';
+  if (ab === 'Ja') return 'Nur Abend';
+  if (nm === 'Unsicher' || ab === 'Unsicher') return 'Unsicher';
+  if (nm === 'Nein' || ab === 'Nein') return 'Abgesagt';
+  return 'Noch offen';
+}
+
+/** Baut „App-Antworten Personen“, „App-Antworten Einladungen“ und „App-Auswertung“ komplett neu auf – immer mit den aktuellen Fragen. */
+function antwortBlaetterNeuAufbauen_() {
+  const ss = SpreadsheetApp.getActive();
+  const fragen = aktiveFragen_();
+  const fP = fragen.filter(f => f.ebene === 'Person'), fE = fragen.filter(f => f.ebene === 'Einladung');
+  const personen = allePersonen_();
+  const letzte = letzteAntworten_();
+  const shE = blatt_(BLATT_EINHEITEN), kopfE = kopfzeile_(shE);
+  const cId = kopfE.indexOf(SP.einheitId), cName = kopfE.indexOf(SP.bezeichnung), cStatus = kopfE.indexOf(SP.rueckmeldung);
+  const datenE = shE.getRange(2, 1, Math.max(shE.getLastRow() - 1, 1), kopfE.length).getValues().filter(r => r[cName]);
+  const einheitName = {};
+  datenE.forEach(r => { einheitName[r[cId]] = r[cName]; });
+  const zeit = id => letzte[id] ? letzte[id].zeit : '';
+  const antwortVon = {};
+  Object.keys(letzte).forEach(id => (letzte[id].daten.personen || []).forEach(p => { antwortVon[p.id] = p; }));
+
+  const zeilenP = personen.map(p => {
+    const a = antwortVon[p.id];
+    const antw = a ? a.antworten || {} : {};
+    return [einheitName[p.einheit] || p.einheit, p.anzeigeName, p.umfang, a ? teilnahme_(a.nachmittag, a.abend) : 'Noch offen',
+      a ? a.nachmittag : p.nachmittag, a ? a.abend : p.abend]
+      .concat(fP.map(f => wertText_(antw[f.id])))
+      .concat([p.einheit, p.id, zeit(p.einheit)]);
+  });
+  blattSchreiben_(ss, BLATT_ANTW_PERSONEN,
+    ['Einladung', 'Name', 'Eingeladen zu', 'Teilnahme', 'Nachmittag', 'Abend'].concat(fP.map(f => f.frage))
+      .concat(['Einladungseinheit-ID', 'Person-ID', 'Zuletzt geändert']), zeilenP);
+
+  const zeilenE = datenE.map(r => {
+    const id = r[cId], l = letzte[id];
+    const anzahl = personen.filter(p => p.einheit === id).length;
+    const dabei = l ? (l.daten.personen || []).filter(p => p.nachmittag === 'Ja' || p.abend === 'Ja').length : 0;
+    const antw = l ? l.daten.antworten || {} : {};
+    return [r[cName], r[cStatus] || 'Offen', l ? dabei + ' von ' + anzahl : '']
+      .concat(fE.map(f => wertText_(antw[f.id]))).concat([id, zeit(id)]);
+  });
+  blattSchreiben_(ss, BLATT_ANTW_EINHEITEN,
+    ['Einladung', 'Rückmeldung', 'Personen dabei'].concat(fE.map(f => f.frage)).concat(['Einladungseinheit-ID', 'Zuletzt geändert']), zeilenE);
+
+  auswertungSchreiben_(ss, fragen, personen, antwortVon, letzte);
+}
+
+function blattLeeren_(ss, name) {
+  const sh = ss.getSheetByName(name) || ss.insertSheet(name);
+  sh.getBandings().forEach(b => b.remove());
+  sh.clear();
+  return sh;
+}
+
+function blattSchreiben_(ss, name, kopf, zeilen) {
+  const sh = blattLeeren_(ss, name);
+  const alle = [kopf].concat(zeilen.map(z => z.map(v => (v === undefined || v === null ? '' : v))));
+  sh.getRange(1, 1, alle.length, kopf.length).setValues(alle);
+  sh.getRange(1, 1, 1, kopf.length).setBackground(FARBE_KOPF).setFontColor('#FFFFFF').setFontWeight('bold')
+    .setWrap(true).setVerticalAlignment('middle');
+  if (alle.length > 1) {
+    sh.getRange(1, 1, alle.length, kopf.length).applyRowBanding()
+      .setHeaderRowColor(FARBE_KOPF).setFirstRowColor(FARBE_BAND).setSecondRowColor('#FFFFFF');
+    sh.getRange(2, 1, alle.length - 1, kopf.length).setWrap(true).setVerticalAlignment('top');
+  }
+  sh.setFrozenRows(1);
+  sh.setColumnWidths(1, kopf.length, 170);
+  sh.setColumnWidths(1, 2, 210);
+}
+
+/** Zählt alle Auswahlfragen – bei Personenfragen getrennt nach Nachmittag / Nachmittag + Abend / Abend. */
+function auswertungSchreiben_(ss, fragen, personen, antwortVon, letzte) {
+  const sh = blattLeeren_(ss, BLATT_AUSWERTUNG);
+  const breite = 7;
+  const zeilen = [], titel = [], koepfe = [];
+  const zeile = werte => { const z = new Array(breite).fill(''); werte.forEach((w, i) => { z[i] = w; }); zeilen.push(z); return zeilen.length; };
+  const treffer = (w, o) => Array.isArray(w) ? w.indexOf(o) >= 0 : String(w) === o;
+
+  const teil = personen.map(p => antwortVon[p.id] ? teilnahme_(antwortVon[p.id].nachmittag, antwortVon[p.id].abend) : 'Noch offen');
+  const zaehl = t => teil.filter(x => x === t).length;
+  titel.push(zeile(['Teilnahme (Personen)']));
+  koepfe.push([zeile(['Teilnahme', 'Personen']), 2]);
+  TEILNAHME_ARTEN.concat(['Unsicher', 'Abgesagt', 'Noch offen']).forEach(t => zeile([t, zaehl(t)]));
+  zeile(['Gesamt Nachmittag', zaehl('Nur Nachmittag') + zaehl('Nachmittag + Abend')]);
+  zeile(['Gesamt Abend', zaehl('Nur Abend') + zaehl('Nachmittag + Abend')]);
+  zeile([]);
+
+  fragen.filter(f => ['ja_nein', 'auswahl', 'mehrfach'].indexOf(f.typ) >= 0).forEach(f => {
+    const optionen = f.typ === 'ja_nein' ? ['Ja', 'Nein'] : f.optionen.slice();
+    if (f.ebene === 'Person') {
+      titel.push(zeile([f.frage]));
+      koepfe.push([zeile(['Antwort'].concat(TEILNAHME_ARTEN).concat(['Gesamt Nachmittag', 'Gesamt Abend', 'Gesamt'])), breite]);
+      const daten = Object.keys(antwortVon).map(id => antwortVon[id])
+        .map(a => ({ t: teilnahme_(a.nachmittag, a.abend), w: (a.antworten || {})[f.id] }))
+        .filter(x => TEILNAHME_ARTEN.indexOf(x.t) >= 0 && x.w !== undefined && x.w !== '');
+      daten.forEach(x => [].concat(x.w).forEach(o => { if (optionen.indexOf(o) < 0) optionen.push(o); }));
+      optionen.forEach(o => {
+        const n = t => daten.filter(x => x.t === t && treffer(x.w, o)).length;
+        const nN = n('Nur Nachmittag'), nNA = n('Nachmittag + Abend'), nA = n('Nur Abend');
+        zeile([o, nN, nNA, nA, nN + nNA, nA + nNA, nN + nNA + nA]);
+      });
+    } else {
+      titel.push(zeile([f.frage + ' (pro Einladung)']));
+      koepfe.push([zeile(['Antwort', 'Einladungen']), 2]);
+      const werte = Object.keys(letzte).map(id => (letzte[id].daten.antworten || {})[f.id]).filter(w => w !== undefined && w !== '');
+      werte.forEach(w => [].concat(w).forEach(o => { if (optionen.indexOf(o) < 0) optionen.push(o); }));
+      optionen.forEach(o => zeile([o, werte.filter(w => treffer(w, o)).length]));
+    }
+    zeile([]);
+  });
+  zeile(['Dieses Blatt wird bei jeder Rückmeldung automatisch neu erstellt. Freitexte stehen in „' + BLATT_ANTW_PERSONEN + '“ und „' + BLATT_ANTW_EINHEITEN + '“.']);
+
+  sh.getRange(1, 1, zeilen.length, breite).setValues(zeilen);
+  titel.forEach(z => sh.getRange(z, 1).setFontWeight('bold').setFontSize(12).setFontColor(FARBE_KOPF));
+  koepfe.forEach(([z, b]) => sh.getRange(z, 1, 1, b).setBackground(FARBE_KOPF).setFontColor('#FFFFFF').setFontWeight('bold').setWrap(true));
+  sh.setColumnWidth(1, 260);
+  sh.setColumnWidths(2, breite - 1, 130);
 }
 
 // ---------------------------------------------------------------- Hilfsfunktionen
@@ -457,31 +647,6 @@ function zelle_(sh, kopf, zeile, spalte, wert) {
 function wertText_(w) {
   if (Array.isArray(w)) return w.join(', ');
   return w === undefined || w === null ? '' : w;
-}
-
-function spaltenName_(f) { return f.frage + ' [' + f.id + ']'; }
-
-function zeileSchreiben_(blattName, schluesselSpalte, schluessel, werte) {
-  const sh = blatt_(blattName);
-  const kopf = kopfzeile_(sh);
-  Object.keys(werte).forEach(name => {
-    if (kopf.indexOf(name) < 0) {
-      kopf.push(name);
-      sh.getRange(1, kopf.length).setValue(name).setFontWeight('bold');
-    }
-  });
-  const cKey = kopf.indexOf(schluesselSpalte);
-  const n = sh.getLastRow() - 1;
-  let zeile = -1;
-  if (n > 0) {
-    const keys = sh.getRange(2, cKey + 1, n, 1).getValues();
-    const i = keys.findIndex(r => r[0] === schluessel);
-    if (i >= 0) zeile = i + 2;
-  }
-  if (zeile < 0) zeile = sh.getLastRow() + 1;
-  const alt = zeile <= sh.getLastRow() ? sh.getRange(zeile, 1, 1, kopf.length).getValues()[0] : new Array(kopf.length).fill('');
-  kopf.forEach((name, i) => { if (name in werte) alt[i] = werte[name]; });
-  sh.getRange(zeile, 1, 1, kopf.length).setValues([alt]);
 }
 
 function zufallsCode_(len) {

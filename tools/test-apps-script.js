@@ -27,11 +27,22 @@ class Range {
   setNumberFormat() { return this; }
   setFontWeight() { return this; }
 }
+const banding = () => new Proxy({}, { get: (t, k, p) => () => p });
 class Sheet {
   constructor(name, rows = []) { this.name = name; this.rows = rows.map(r => r.slice()); }
   get(r, c) { return (this.rows[r - 1] || [])[c - 1] ?? ''; }
   set(r, c, v) { while (this.rows.length < r) this.rows.push([]); const row = this.rows[r - 1]; while (row.length < c) row.push(''); row[c - 1] = v; }
-  getRange(r, c, nr, nc) { return new Range(this, r, c, nr, nc); }
+  getRange(r, c, nr, nc) {
+    // Formatierungsaufrufe (setBackground, setWrap …) sind im Test egal, müssen aber verkettbar sein
+    const px = new Proxy(new Range(this, r, c, nr, nc), {
+      get: (t, k) => (k in t ? (typeof t[k] === 'function' ? t[k].bind(px) : t[k]) : (k === 'applyRowBanding' ? () => banding() : () => px)),
+    });
+    return px;
+  }
+  clear() { this.rows = []; }
+  getBandings() { return []; }
+  setColumnWidths() {}
+  setColumnWidth() {}
   getLastRow() { for (let i = this.rows.length; i > 0; i--) if (this.rows[i - 1].some(v => v !== '')) return i; return 0; }
   getLastColumn() { return Math.max(0, ...this.rows.map(r => { for (let i = r.length; i > 0; i--) if (r[i - 1] !== '') return i; return 0; })); }
   appendRow(v) { const r = this.getLastRow() + 1; v.forEach((x, j) => this.set(r, j + 1, x)); }
@@ -41,11 +52,11 @@ class Sheet {
   wert(schluesselSpalte, schluessel, spalte) { return this.zeile(schluesselSpalte, schluessel)[this.rows[0].indexOf(spalte)]; }
 }
 
-const PERSONEN_KOPF = ['Person-ID', 'Einladungseinheit-ID', 'Vorname', 'Nachname', 'Bezug', 'Gästegruppe', 'Listenstatus', 'Einladungsumfang', 'Straße + Hausnummer', 'PLZ', 'Ort', 'Telefonnummer', 'E-Mail-Adresse', 'Voraussichtliche Teilnahme Nachmittag', 'Voraussichtliche Teilnahme Abend', 'Finale Teilnahme Nachmittag', 'Finale Teilnahme Abend', 'Ernährungsweise', 'Glutenfrei?', 'Sonstige Allergien/Besonderheiten?', 'Details Allergien/Besonderheiten', 'Bemerkungen zur Person'];
+const PERSONEN_KOPF = ['Person-ID', 'Einladungseinheit-ID', 'Vorname', 'Nachname', 'Bezug', 'Gästegruppe', 'Listenstatus', 'Einladungsumfang', 'Straße + Hausnummer', 'PLZ', 'Ort', 'Telefonnummer', 'E-Mail-Adresse', 'Voraussichtliche Teilnahme Nachmittag', 'Voraussichtliche Teilnahme Abend', 'Finale Teilnahme Nachmittag', 'Finale Teilnahme Abend', 'Ernährungsweise', 'Bemerkungen zur Person'];
 const EINHEITEN_KOPF = ['Einladungseinheit-ID', 'Bezeichnung / Empfänger', 'Hauptansprechpartner', 'Anzahl eingeladene Personen (automatisch)', 'Listenstatus (automatisch)', 'Save-the-Date versendet?', 'Save-the-Date versendet am', 'Save-the-Date versendet von', 'Save-the-Date Medium', 'Save-the-Date Rückmeldung', 'vorerst zugesagte Personen', 'Save-the-Date Rückmeldung am', 'Save-the-Date Reminder versendet am', 'Save-the-Date Rückmeldung über', 'Save-the-Date Bemerkung', 'Einladung versendet?', 'Einladung versendet am', 'Einladung versendet von', 'Einladung Medium', 'Einladung Rückmeldung', 'Einladung Rückmeldung am', 'Einladung Rückmeldung über', 'Einladung Bemerkung'];
-const person = (id, e, v, n, umfang) => {
+const person = (id, e, v, n, umfang, tel) => {
   const r = PERSONEN_KOPF.map(() => '');
-  Object.assign(r, { 0: id, 1: e, 2: v, 3: n, 6: 'Hauptliste', 7: umfang });
+  Object.assign(r, { 0: id, 1: e, 2: v, 3: n, 6: 'Hauptliste', 7: umfang, 11: tel || '' });
   r[15] = /nachmittag/i.test(umfang) ? 'Offen' : 'Nicht eingeladen';
   r[16] = /abend/i.test(umfang) ? 'Offen' : 'Nicht eingeladen';
   return r;
@@ -55,7 +66,7 @@ const einheit = (id, name) => { const r = EINHEITEN_KOPF.map(() => ''); r[0] = i
 const sheets = {
   'Gästeliste – Personen': new Sheet('Gästeliste – Personen', [PERSONEN_KOPF,
     person('P001', 'E001', 'Max', 'Muster', 'Nachmittag + Abend'),
-    person('P002', 'E001', 'Freundin Max', '', 'Nachmittag + Abend'),
+    person('P002', 'E001', 'Freundin Max', '', 'Nachmittag + Abend', '‭+49 ‭176 1234567‬'),
     person('P003', 'E002', 'Erika', 'Probe', 'Nur Abend')]),
   'Versand & Einladungen': new Sheet('Versand & Einladungen', [EINHEITEN_KOPF, einheit('E001', 'Max & Begleitung'), einheit('E002', 'Erika'), einheit('E003', '')]),
 };
@@ -114,15 +125,23 @@ assert.strictEqual(r.status, 'Zugesagt');
 assert.strictEqual(P.wert('Person-ID', 'P001', 'Finale Teilnahme Nachmittag'), 'Ja');
 assert.strictEqual(P.wert('Person-ID', 'P002', 'Finale Teilnahme Nachmittag'), 'Nein');
 assert.strictEqual(P.wert('Person-ID', 'P001', 'Ernährungsweise'), 'Vegetarisch');
-assert.strictEqual(P.wert('Person-ID', 'P001', 'Details Allergien/Besonderheiten'), 'Nüsse');
-assert.strictEqual(P.wert('Person-ID', 'P002', 'Glutenfrei?'), 'Ja');
 assert.strictEqual(P.wert('Person-ID', 'P002', 'Bemerkungen zur Person'), 'Name laut Anmeldung: Lisa Probe');
 assert.strictEqual(E.wert('Einladungseinheit-ID', 'E001', 'Einladung Rückmeldung'), 'Zugesagt');
 assert.strictEqual(E.wert('Einladungseinheit-ID', 'E001', 'Einladung Rückmeldung über'), 'Online-Formular');
 assert.strictEqual(E.wert('Einladungseinheit-ID', 'E001', 'Einladung Bemerkung'), 'Freuen uns!');
 const AP = sheets['App-Antworten Personen'];
-assert.strictEqual(AP.wert('Person-ID', 'P001', 'Lieblingsgetränke [getraenke]'), 'Wein, Wasser');
-assert.strictEqual(sheets['App-Antworten Einladungen'].wert('Einladungseinheit-ID', 'E001', 'Was für einen Kuchen? [kuchen_art]'), 'Käsekuchen');
+assert.strictEqual(AP.wert('Person-ID', 'P001', 'Lieblingsgetränke'), 'Wein, Wasser');
+assert.strictEqual(AP.wert('Person-ID', 'P001', 'Teilnahme'), 'Nachmittag + Abend');
+assert.strictEqual(AP.wert('Person-ID', 'P002', 'Teilnahme'), 'Nur Abend');
+assert.strictEqual(AP.wert('Person-ID', 'P002', 'Name'), 'Lisa Probe (Freundin Max)');
+assert.strictEqual(AP.wert('Person-ID', 'P003', 'Teilnahme'), 'Noch offen', 'auch Personen ohne Antwort stehen drin');
+const AW = sheets['App-Auswertung'].rows;
+const vegan = AW.find(r => r[0] === 'Vegan');
+assert.deepStrictEqual(vegan.slice(1, 7), [0, 0, 1, 0, 1, 1], 'Vegan: 1x nur Abend');
+const vegi = AW.find(r => r[0] === 'Vegetarisch');
+assert.deepStrictEqual(vegi.slice(1, 7), [0, 1, 0, 1, 1, 1], 'Vegetarisch: 1x Nachmittag + Abend');
+assert.strictEqual(sheets['App-Antworten Einladungen'].wert('Einladungseinheit-ID', 'E001', 'Was für einen Kuchen?'), 'Käsekuchen');
+assert.strictEqual(sheets['App-Antworten Einladungen'].wert('Einladungseinheit-ID', 'E001', 'Personen dabei'), '2 von 2');
 console.log('✓ Gast senden: Personenblatt, Einladungsblatt, App-Antworten');
 
 // 5. Änderung: Absage überschreibt, Essensangaben werden geleert, Antwortzeilen werden ersetzt statt angehängt
@@ -132,7 +151,7 @@ r = post({ aktion: 'gast.senden', code: code1, personen: [
 ], antworten: {} });
 assert.strictEqual(r.status, 'Teilweise zugesagt');
 assert.strictEqual(P.wert('Person-ID', 'P001', 'Ernährungsweise'), '');
-assert.strictEqual(AP.getLastRow(), 3, 'pro Person nur eine Zeile');
+assert.strictEqual(AP.getLastRow(), 4, 'pro Person genau eine Zeile');
 assert.strictEqual(post({ aktion: 'gast.laden', code: code1 }).einheit.personen[0].antwort.nachmittag, 'Nein');
 console.log('✓ Änderung: überschreibt sauber, Status „Teilweise zugesagt“');
 
@@ -154,7 +173,22 @@ assert(!r.fragen.some(f => f.id === 'ernaehrung'));
 assert.strictEqual(sheets['App-Fragen'].getLastRow(), fragen.length + 1, 'alte Zeilen müssen weg sein');
 console.log('✓ Fragen speichern: hinzufügen, löschen, Reihenfolge');
 
-// 8. Formular schließen
+// 8. Versand protokollieren + Telefonnummer
+let d = post({ aktion: 'admin.versandMarkieren', passwort: pw, ids: ['E002'], medium: 'WhatsApp' });
+assert(d.ok, d.fehler);
+assert.strictEqual(E.wert('Einladungseinheit-ID', 'E002', 'Einladung versendet?'), 'Ja');
+assert.strictEqual(E.wert('Einladungseinheit-ID', 'E002', 'Einladung versendet von'), 'Sonstige Person');
+assert.strictEqual(E.wert('Einladungseinheit-ID', 'E002', 'Einladung Medium'), 'WhatsApp');
+assert.strictEqual(Object.prototype.toString.call(E.wert('Einladungseinheit-ID', 'E002', 'Einladung versendet am')), '[object Date]');
+const e1 = d.einheiten.find(e => e.id === 'E001');
+assert.strictEqual(e1.telefon, '491761234567', 'oberste Nummer, bereinigt');
+assert.strictEqual(d.einheiten.find(e => e.id === 'E002').versendet, true);
+assert.strictEqual(e1.personen[0].antworten.ernaehrung, 'Vegetarisch', 'Antworten für die Übersicht');
+d = post({ aktion: 'admin.versandMarkieren', passwort: pw, ids: ['E002'], zuruecksetzen: true });
+assert.strictEqual(E.wert('Einladungseinheit-ID', 'E002', 'Einladung versendet?'), 'Nein');
+console.log('✓ Versand protokollieren + zurücksetzen, Telefonnummer');
+
+// 9. Formular schließen
 post({ aktion: 'admin.einstellungenSpeichern', passwort: pw, einstellungen: { 'Formular offen': 'Nein' } });
 assert.strictEqual(post({ aktion: 'gast.senden', code: code1, personen: [], antworten: {} }).ok, false);
 console.log('✓ Formular geschlossen blockiert Antworten');
