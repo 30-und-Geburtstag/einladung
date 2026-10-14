@@ -323,12 +323,24 @@ async function versandSetzen(ids, versandt, medium = 'WhatsApp') {
 const MOBIL = /Android|iPhone|iPad/i.test(navigator.userAgent);
 function waModus() { try { return localStorage.getItem('einladung-wa') || (MOBIL ? 'mobil' : 'app'); } catch { return MOBIL ? 'mobil' : 'app'; } }
 
+// Chat bewusst OHNE vorausgefüllten Text öffnen: Sonst macht WhatsApp den Text beim Einfügen der Karte zur
+// Bildunterschrift – die ist auf 1024 Zeichen begrenzt (Telegram ebenso), und der Begleittext wird abgeschnitten.
 function waLink(e) {
-  const text = encodeURIComponent(begleittext(e));
   const modus = waModus();
-  if (modus === 'web') return `https://web.whatsapp.com/send?phone=${e.telefon}&text=${text}`;
-  if (modus === 'mobil') return `https://wa.me/${e.telefon}?text=${text}`;
-  return `whatsapp://send?phone=${e.telefon}&text=${text}`;
+  if (modus === 'web') return `https://web.whatsapp.com/send?phone=${e.telefon}`;
+  if (modus === 'mobil') return `https://wa.me/${e.telefon}`;
+  return `whatsapp://send?phone=${e.telefon}`;
+}
+
+/** Karte mittig auf ein schwarzes Quadrat setzen – Chat-Vorschauen schneiden hohe Bilder sonst oben und unten ab. */
+function quadratisch(karte) {
+  const c = document.createElement('canvas');
+  c.width = c.height = Math.max(karte.width, karte.height);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#111111';
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(karte, (c.width - karte.width) / 2, (c.height - karte.height) / 2);
+  return c;
 }
 
 async function karteKopieren(blob) {
@@ -360,12 +372,13 @@ function versandAssistent(liste) {
     blob = null;
     const vorschau = el('div', { class: 'laden' }, 'Karte wird erstellt …');
     const oeffnen = el('button', { class: 'knopf whatsapp', disabled: true }, '1. Karte kopieren & Chat öffnen');
-    const teilen = navigator.canShare ? el('button', { class: 'knopf zweit', disabled: true }, 'Über Handy teilen …') : null;
+    const textKnopf = el('button', { class: 'knopf whatsapp', onclick: () => kopieren(begleittext(e), 'Text kopiert – im Chat Strg + V, dann Enter') }, '2. Begleittext kopieren');
+    const teilen = navigator.canShare ? el('button', { class: 'knopf zweit', disabled: true }, 'Karte über Handy teilen …') : null;
     const weiter = el('button', { class: 'knopf', onclick: async () => {
       weiter.disabled = true; weiter.textContent = 'Wird eingetragen …';
       await versandSetzen([e.id], true);
       gesendet++; i++; zeige();
-    } }, '2. Gesendet ✓ – weiter');
+    } }, '3. Gesendet ✓ – weiter');
     setzen(inhalt, 
       el('div', { class: 'leise' }, `Einladung ${i + 1} von ${queue.length}`),
       el('h3', {}, e.name),
@@ -373,17 +386,18 @@ function versandAssistent(liste) {
       e.versendet ? el('div', { class: 'meldung warn' }, `Wurde bereits am ${e.versendetAm} versandt.`) : null,
       vorschau,
       el('ol', { class: 'anleitung' },
-        el('li', {}, 'Auf „Karte kopieren & Chat öffnen“ klicken – der Chat öffnet sich mit dem Begleittext.'),
-        el('li', {}, 'Im Chat Strg + V drücken und die Karte mit Enter senden.'),
-        el('li', {}, 'Dann den Begleittext mit Enter senden.')),
-      el('div', { class: 'knoepfe-mitte' }, oeffnen, teilen),
+        el('li', {}, '„Karte kopieren & Chat öffnen“ – im Chat Strg + V und Enter: die Karte geht allein raus.'),
+        el('li', {}, 'Zurück hierher, „Begleittext kopieren“ – im Chat Strg + V und Enter: der Text kommt als eigene Nachricht.'),
+        el('li', {}, '„Gesendet – weiter“ trägt den Versand in die Tabelle ein.')),
+      el('p', { class: 'leise' }, 'Bitte den Text nicht als Bildunterschrift zur Karte schicken – WhatsApp und Telegram kürzen Bildunterschriften nach 1024 Zeichen.'),
+      el('div', { class: 'knoepfe-mitte' }, oeffnen, textKnopf, teilen),
       el('div', { class: 'knoepfe-mitte' }, weiter,
         el('button', { class: 'knopf zweit', onclick: () => { i++; zeige(); } }, 'Überspringen'),
         el('button', { class: 'knopf zweit', onclick: zu }, 'Beenden')),
       modusWahl());
 
-    const karte = await karteErzeugen(e);
-    karte.style.cssText = 'width:160px;border-radius:4px;display:block;margin:10px auto';
+    const karte = quadratisch(await karteErzeugen(e));
+    karte.style.cssText = 'width:180px;border-radius:4px;display:block;margin:10px auto';
     vorschau.replaceWith(karte);
     blob = await new Promise(ok => karte.toBlob(ok, 'image/png'));
     oeffnen.disabled = false;
@@ -399,7 +413,8 @@ function versandAssistent(liste) {
       const datei = new File([blob], dateiName(e) + '.png', { type: 'image/png' });
       if (navigator.canShare({ files: [datei] })) {
         teilen.disabled = false;
-        teilen.onclick = () => navigator.share({ files: [datei], text: begleittext(e) }).catch(() => {});
+        // nur die Karte teilen – der Text kommt getrennt über „Begleittext kopieren“ (sonst wird er zur gekürzten Bildunterschrift)
+        teilen.onclick = () => navigator.share({ files: [datei] }).catch(() => {});
       } else teilen.remove();
     }
   }
@@ -468,7 +483,8 @@ async function karteZeigen(e) {
   karte.style.cssText = 'width:100%;max-height:60vh;object-fit:contain;background:none;border-radius:4px';
   setzen(inhalt, karte,
     el('div', { style: 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px' },
-      el('a', { class: 'knopf klein', href: karte.toDataURL('image/jpeg', 0.92), download: dateiName(e) + '.jpg' }, 'Karte herunterladen'),
+      el('a', { class: 'knopf klein', href: quadratisch(karte).toDataURL('image/jpeg', 0.92), download: dateiName(e) + '_Chat.jpg' }, 'Karte für Chats'),
+      el('a', { class: 'knopf zweit klein', href: karte.toDataURL('image/jpeg', 0.92), download: dateiName(e) + '.jpg' }, 'Original'),
       el('a', { class: 'knopf zweit klein', href: qr.toDataURL('image/png'), download: 'QR_' + dateiName(e) + '.png' }, 'Nur QR'),
       el('button', { class: 'knopf zweit klein', onclick: () => kopieren(begleittext(e), 'Begleittext kopiert') }, 'Text kopieren'),
       el('button', { class: 'knopf zweit klein', onclick: zu }, 'Schließen')));
