@@ -11,7 +11,7 @@ const BEDINGUNGEN = { immer: 'Immer', dabei: 'Wenn dabei (Nachmittag oder Abend)
 const ORT_TEXT = 'Wir feiern im Gewölbekeller im alten Pfarrhaus, Kirchberg 2, 63877 Sailauf. Öffentliche Straßenparkplätze gibt es in der direkten Umgebung am Kirchberg und im Ortskern. Bitte beachtet: Der Zugang zur Location ist nicht barrierefrei.';
 const VORLAGEN = {
   'Begleittext Nur Nachmittag': `Hallo 💛
-unser Save the Date wird zur Einladung: Am 7. November feiern wir unsere Geburtstage und laden herzlich zu Kaffee und Kuchen von 14 bis 18 Uhr ein! 🥰
+unser Save the Date wird zur Einladung: Am 7. November feiern wir unsere Geburtstage und laden herzlich zu Kaffee und Kuchen von 15 bis 18 Uhr ein! 🥰
 
 Bitte gebt uns bis zum 21. Oktober 2026 verbindlich Bescheid, ob ihr dabei seid – auch wenn es leider nicht klappt. Über euren persönlichen Link oder den QR-Code auf der Karte könnt ihr für jede Person einzeln zu- oder absagen:
 {LINK}
@@ -22,7 +22,7 @@ Trachten aus aller Welt sind willkommen – das Lieblingsoutfit natürlich genau
 Wir freuen uns auf einen schönen Nachmittag zusammen!
 Aysel & Robin`,
   'Begleittext Nachmittag + Abend': `Hallo 💛
-unser Save the Date wird zur Einladung: Am 7. November feiern wir unsere Geburtstage – ab 14 Uhr mit Kaffee und Kuchen und ab 19 Uhr mit Buffet, Musik und Party! 🥂
+unser Save the Date wird zur Einladung: Am 7. November feiern wir unsere Geburtstage – ab 15 Uhr mit Kaffee und Kuchen und ab 19 Uhr mit Buffet, Musik und Party! 🥂
 
 Von 18 bis 19 Uhr bereiten wir alles für den Abend vor. Wer bleibt, darf natürlich vor Ort bleiben und wird auch in dieser Zeit weiter versorgt.
 
@@ -46,6 +46,9 @@ Trachten aus aller Welt sind willkommen – das Lieblingsoutfit natürlich genau
 Wir freuen uns auf einen schönen Abend zusammen!
 Aysel & Robin`,
 };
+// Kaffee & Kuchen beginnt um 15 statt 14 Uhr – gilt auch für bereits gespeicherte Begleittexte.
+const neueZeiten = t => String(t).replaceAll('14 bis 18 Uhr', '15 bis 18 Uhr').replaceAll('ab 14 Uhr mit Kaffee', 'ab 15 Uhr mit Kaffee');
+
 const EINSTELLUNGEN_FELDER = [
   ['Formular offen', 'jn', 'Wenn „Nein“, können Gäste nichts mehr eintragen (z. B. nach dem Anmeldeschluss).'],
   ['Anmeldeschluss', 'text', 'Wird den Gästen angezeigt, z. B. 21.10.2026.'],
@@ -161,7 +164,7 @@ function begleittext(einheit) {
   const umfang = einheit.personen[0]?.umfang || '';
   const key = /nachmittag/i.test(umfang) && /abend/i.test(umfang) ? 'Begleittext Nachmittag + Abend'
     : /nachmittag/i.test(umfang) ? 'Begleittext Nur Nachmittag' : 'Begleittext Nur Abend';
-  return (A.daten.einstellungen[key] || VORLAGEN[key]).replaceAll('{LINK}', einheit.link);
+  return neueZeiten(A.daten.einstellungen[key] || VORLAGEN[key]).replaceAll('{LINK}', einheit.link);
 }
 
 function tabEinladungen() {
@@ -361,7 +364,7 @@ function tabEinstellungen() {
   const felder = EINSTELLUNGEN_FELDER.map(([key, art, hilfe]) => {
     const id = 'st-' + key.replace(/\W+/g, '-');
     let input;
-    const start = art === 'pw' ? '' : (st[key] ?? VORLAGEN[key] ?? '');
+    const start = art === 'pw' ? '' : art === 'vorlage' ? neueZeiten(st[key] ?? VORLAGEN[key]) : (st[key] ?? VORLAGEN[key] ?? '');
     werte[key] = start;
     if (art === 'jn') {
       input = el('select', { id, onchange: e => { werte[key] = e.target.value; } },
