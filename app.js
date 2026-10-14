@@ -108,10 +108,11 @@ function personBlock(p, a) {
     el('div', { class: 'titel' }, titel, ' ', el('span', { class: 'zeit' }, zeit)),
     wahlKnoepfe(optionen.map(o => [o, anzeige[o]]), a[schluessel], w => { a[schluessel] = w; pruefenFalls(); zeichnen(); }));
   const ctx = { person: a, antworten: a.antworten };
+  const kind = /^Kind/i.test(p.vorname);
   return el('div', { class: 'block person' + (fehltTeil || zustand.fehler[p.id + ':name'] ? ' fehlt' : '') },
-    el('h3', {}, p.platzhalter ? 'Eure Begleitung' : `${p.vorname} ${p.nachname}`.trim()),
+    el('h3', {}, p.platzhalter ? (kind ? 'Euer Kind' : 'Eure Begleitung') : `${p.vorname} ${p.nachname}`.trim()),
     p.platzhalter ? el('div', { class: 'frage' },
-      el('label', { for: 'name-' + p.id }, 'Name der Begleitung'),
+      el('label', { for: 'name-' + p.id }, kind ? 'Name des Kindes' : 'Name der Begleitung'),
       el('input', { type: 'text', id: 'name-' + p.id, value: a.name, placeholder: 'Vor- und Nachname', autocomplete: 'off',
         oninput: e => { a.name = e.target.value; } }),
       zustand.fehler[p.id + ':name'] ? el('div', { class: 'fehler' }, 'Bitte tragt den Namen ein.') : null) : null,
@@ -222,7 +223,7 @@ async function senden() {
 function zeichneDanke() {
   const { daten } = zustand;
   const zeile = (p, a) => {
-    const name = p.platzhalter ? (a.name || 'Begleitung') : `${p.vorname} ${p.nachname}`.trim();
+    const name = p.platzhalter ? (a.name || (/^Kind/i.test(p.vorname) ? 'Kind' : 'Begleitung')) : `${p.vorname} ${p.nachname}`.trim();
     const wort = { Ja: 'dabei', Nein: 'nicht dabei', Unsicher: 'noch unsicher' };
     const teile = [];
     if (p.nachmittagEingeladen) teile.push('Nachmittag ' + (wort[a.nachmittag] || 'offen'));
