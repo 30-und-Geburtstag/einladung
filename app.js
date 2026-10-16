@@ -245,12 +245,17 @@ function zeichneDanke() {
 
 function infoBloecke() {
   const karte = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Kirchberg 2, 63877 Sailauf');
+  // Nur die Programmteile zeigen, zu denen diese Einladung tatsächlich eingeladen ist
+  const personen = zustand.daten?.einheit?.personen || [];
+  const nachmittag = personen.some(p => p.nachmittagEingeladen);
+  const abend = personen.some(p => p.abendEingeladen);
+  const trenner = () => el('span', { class: 'trenner', 'aria-hidden': 'true' });
   return el('section', { class: 'infos' },
     el('div', { class: 'block' }, el('div', { class: 'titel' }, 'Wann'),
       'Samstag, 7. November 2026',
       el('div', { class: 'zeitplan' },
-        el('span', {}, 'Kaffee & Kuchen'), el('span', { class: 'trenner', 'aria-hidden': 'true' }), el('span', {}, '14 bis 17 Uhr'),
-        el('span', {}, 'Buffet & Party'), el('span', { class: 'trenner', 'aria-hidden': 'true' }), el('span', {}, 'ab 18 Uhr'))),
+        nachmittag ? [el('span', {}, 'Kaffee & Kuchen'), trenner(), el('span', {}, '14 bis 17 Uhr')] : null,
+        abend ? [el('span', {}, 'Buffet & Party'), trenner(), el('span', {}, 'ab 18 Uhr')] : null)),
     el('div', { class: 'block' }, el('div', { class: 'titel' }, 'Wo'),
       'Gewölbekeller im alten Pfarrhaus', el('br'), 'Kirchberg 2, 63877 Sailauf', el('br'),
       el('a', { href: karte, target: '_blank', rel: 'noopener' }, 'In Karten öffnen')),
