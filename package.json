@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "node tools/test-apps-script.js",
-    "veroeffentlichen": "git subtree split --prefix web -b gh-pages-neu && git push -f origin gh-pages-neu:gh-pages && git branch -D gh-pages-neu"
+    "veroeffentlichen": "node tools/version-stempeln.js && git commit -qam \"Versionsnummer für Browser-Cache\" && git push -q && git subtree split --prefix web -b gh-pages-neu && git push -f origin gh-pages-neu:gh-pages && git branch -D gh-pages-neu"
   },
   "keywords": [],
   "author": "",
