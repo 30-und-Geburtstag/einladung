@@ -42,5 +42,5 @@ Version „Neue Version“ → Bereitstellen. Die URL bleibt gleich.
 - Vorschau: `npx http-server web -p 5180` → `http://localhost:5180/?c=demo1` bzw. `/admin.html` (Passwort `demo`).
   Solange `web/config.js` keine API-URL enthält, läuft alles mit Beispieldaten.
 - Skript-Tests: `npm test`
-- Online stellen (GitHub Pages, Branch gh-pages = Inhalt von web/): `npm run veroeffentlichen`
+- Online stellen (GitHub Pages, Branch gh-pages = Inhalt von web/): `npm run veroeffentlichen` – setzt automatisch neue ?v=…-Versionsnummern (GitHub Pages lässt Browser Dateien 10 Min. cachen)
 - Live: https://30-und-geburtstag.github.io/einladung/ (Verwaltung: …/admin.html)
