@@ -1,7 +1,7 @@
 // Demo-Backend mit erfundenen Beispieldaten, aktiv solange in config.js keine API-Adresse steht.
 // Gast-Links zum Ausprobieren: ?c=demo1, ?c=demo2, ?c=demo3 – Admin-Passwort: demo
 (function () {
-  const SPEICHER = 'einladung-demo-v2';
+  const SPEICHER = 'einladung-demo-v3';
   const frage = (id, ebene, typ, text, optionen, pflicht, bedingung, hilfe = '', zielspalte = '') =>
     ({ id, aktiv: true, ebene, typ, frage: text, hilfe, optionen, pflicht, bedingung, zielspalte });
   const start = () => ({
@@ -25,11 +25,21 @@
     einheiten: [
       { id: 'E901', code: 'demo1', name: 'Max & Begleitung', umfang: 'Nachmittag + Abend', liste: 'Hauptliste', telefon: '491701234567', personen: [['P901', 'Max', 'Mustermann'], ['P902', 'Begleitung Max', '']] },
       { id: 'E902', code: 'demo2', name: 'Erika', umfang: 'Nur Abend', liste: 'Hauptliste', telefon: '491607654321', personen: [['P903', 'Erika', 'Beispiel']] },
+      { id: 'E904', code: 'demo4', name: 'Oma & Opa Beispiel', umfang: 'Nachmittag + Abend', liste: 'Hauptliste', telefon: '4915112345678', personen: [['P907', 'Helga', 'Beispiel'], ['P908', 'Kurt', 'Beispiel']] },
+      { id: 'E905', code: 'demo5', name: 'Jonas', umfang: 'Nur Abend', liste: 'Hauptliste', telefon: '4917698765432', personen: [['P909', 'Jonas', 'Probe']] },
+      { id: 'E906', code: 'demo6', name: 'Familie Test', umfang: 'Nachmittag + Abend', liste: 'Optional', telefon: '4915209876543', personen: [['P910', 'Tina', 'Test'], ['P911', 'Tom', 'Test']] },
       { id: 'E903', code: 'demo3', name: 'Familie Muster', umfang: 'Nur Nachmittag', liste: 'Optional', telefon: '', personen: [['P904', 'Anna', 'Muster'], ['P905', 'Ben', 'Muster'], ['P906', 'Kind Anna', '']] },
     ],
-    antworten: {},
-    versand: {},
+    antworten: {
+      E904: antw([['P907', '', 'Ja', 'Ja', { ernaehrung: 'Vegan', getraenke: ['Weißwein', 'Wasser still'] }], ['P908', '', 'Ja', 'Nein', { ernaehrung: 'Keine Besonderheiten', getraenke: ['Kaffee/Tee'] }]], { kuchen: 'Ja', kuchen_art: 'Apfelkuchen' }),
+      E905: antw([['P909', '', 'Nicht eingeladen', 'Ja', { ernaehrung: 'Glutenfrei', getraenke: ['Bier Helles', 'Radler'] }]], { kuchen: 'Ja', kuchen_art: 'Brownies', musik: 'Tujhe Dekha To' }),
+      E906: antw([['P910', '', 'Nein', 'Nein', {}], ['P911', '', 'Nein', 'Nein', {}]], {}),
+    },
+    versand: { E904: { am: '16.10.26, 18:02', medium: 'WhatsApp' }, E905: { am: '16.10.26, 18:05', medium: 'WhatsApp' }, E906: { am: '16.10.26, 18:07', medium: 'WhatsApp' }, E902: { am: '17.10.26, 09:12', medium: 'WhatsApp' } },
   });
+  function antw(personen, antworten) {
+    return { zeit: '2026-10-17T10:00:00Z', personen: personen.map(([id, name, nachmittag, abend, a]) => ({ id, name, nachmittag, abend, antworten: a })), antworten };
+  }
   const laden = () => { try { return JSON.parse(localStorage.getItem(SPEICHER)) || start(); } catch { return start(); } };
   const sichern = d => { try { localStorage.setItem(SPEICHER, JSON.stringify(d)); } catch { /* egal */ } };
   const platzhalter = v => /^(Freund|Freundin|Begleitung|Partner|Partnerin|Kind)\b/i.test(v);
