@@ -152,13 +152,93 @@ function anzeigeStatus(e) {
   return { text: s, klasse };
 }
 
+/** Wann eine Einladung kommt – für Kuchen & Co. (Nachmittag hat Vorrang, weil Kuchen zum Kaffee gehört). */
+function einladungKommt(e) {
+  const t = e.personen.map(teilnahme);
+  if (t.some(x => x === 'Nur Nachmittag' || x === 'Nachmittag + Abend')) return t.some(x => x === 'Nachmittag + Abend' || x === 'Nur Abend') ? 'Nachmittag + Abend' : 'Nachmittag';
+  if (t.includes('Nur Abend')) return 'Abend';
+  return 'kommt nicht';
+}
+
+// Darstellung der Namenslisten: a = aufklappen, b = Fenster, c = Seitenleiste – umschaltbar, im Browser gemerkt
+const DARSTELLUNGEN = { b: 'Fenster', a: 'Aufklappen', c: 'Seitenleiste' };
+function darstellung() {
+  const url = (new URLSearchParams(location.search).get('design') || '').toLowerCase();
+  if (DARSTELLUNGEN[url]) return url;
+  try { const g = localStorage.getItem('einladung-darstellung'); if (DARSTELLUNGEN[g]) return g; } catch { /* egal */ }
+  return 'b';
+}
+
+function darstellungWahl() {
+  return el('div', { class: 'darstellung-wahl' }, el('span', { class: 'leise' }, 'Namen anzeigen als'),
+    el('div', { class: 'wahl', role: 'group', 'aria-label': 'Darstellung der Namenslisten' },
+      Object.entries(DARSTELLUNGEN).map(([k, t]) => el('button', { type: 'button', 'aria-pressed': String(darstellung() === k),
+        onclick: () => {
+          try { localStorage.setItem('einladung-darstellung', k); } catch { /* egal */ }
+          if (new URLSearchParams(location.search).has('design')) history.replaceState(null, '', location.pathname + location.search.replace(/[?&]design=[^&]*/, '').replace(/^&/, '?'));
+          document.querySelectorAll('.namen-panel, .namen-leiste, .modal-hg.namen-fenster').forEach(x => x.remove());
+          zeichneAdmin();
+        } }, t))));
+}
+
+/** Kachel, die beim Anklicken die zugehörigen Namen zeigt. eintraege: [{ name, gruppe?, info? }] */
+function kachel(zahl, was, eintraege) {
+  if (!eintraege) return el('div', { class: 'kachel' }, el('div', { class: 'zahl' }, String(zahl)), el('div', { class: 'was' }, was));
+  const k = el('button', { type: 'button', class: 'kachel klickbar', 'aria-expanded': 'false', title: 'Namen anzeigen',
+    onclick: () => namenZeigen(k, was, zahl, eintraege) },
+    el('div', { class: 'zahl' }, String(zahl)), el('div', { class: 'was' }, was), el('div', { class: 'pfeil', 'aria-hidden': 'true' }, '›'));
+  return k;
+}
+
+function namenListe(eintraege, gruppieren) {
+  if (!eintraege.length) return el('p', { class: 'leise' }, 'Niemand.');
+  if (!gruppieren) {
+    return el('div', { class: 'namen-chips' }, eintraege.map(x =>
+      el('span', { class: 'chip' }, x.name, x.info ? el('span', { class: 'chip-info' }, ' · ' + x.info) : null)));
+  }
+  const gruppen = new Map();
+  eintraege.forEach(x => { const g = x.gruppe || x.name; if (!gruppen.has(g)) gruppen.set(g, []); gruppen.get(g).push(x); });
+  return el('div', { class: 'namen-gruppen' }, [...gruppen].map(([g, liste]) => el('div', { class: 'namen-gruppe' },
+    el('div', { class: 'gruppe-titel' }, g),
+    liste.filter(x => x.name !== g || x.info).map(x => el('div', { class: 'gruppe-zeile' },
+      x.name !== g ? x.name : '', x.info ? el('span', { class: 'leise' }, (x.name !== g ? ' · ' : '') + x.info) : null)))));
+}
+
+function namenZeigen(kachelEl, titel, zahl, eintraege) {
+  document.querySelectorAll('.kachel.klickbar[aria-expanded="true"]').forEach(k => { if (k !== kachelEl) k.setAttribute('aria-expanded', 'false'); });
+  const offen = kachelEl.getAttribute('aria-expanded') === 'true';
+  document.querySelectorAll('.namen-panel, .namen-leiste, .modal-hg.namen-fenster').forEach(x => x.remove());
+  if (offen) { kachelEl.setAttribute('aria-expanded', 'false'); return; }
+  kachelEl.setAttribute('aria-expanded', 'true');
+  const zu = () => { document.querySelectorAll('.namen-panel, .namen-leiste, .modal-hg.namen-fenster').forEach(x => x.remove()); kachelEl.setAttribute('aria-expanded', 'false'); };
+  const kopf = el('div', { class: 'namen-kopf' }, el('strong', {}, `${titel} (${zahl})`),
+    el('button', { class: 'knopf zweit klein', 'aria-label': 'Schließen', onclick: zu }, '×'));
+
+  const design = darstellung();
+  if (design === 'a') {
+    // Aufklappen: Panel direkt unter der Kachelreihe, über die volle Breite
+    kachelEl.closest('.kacheln').after(el('div', { class: 'namen-panel', role: 'region', 'aria-label': titel }, kopf, namenListe(eintraege, false)));
+  } else if (design === 'c') {
+    // Seitenleiste rechts – Kacheln bleiben sichtbar, man kann direkt die nächste anklicken
+    document.body.append(el('aside', { class: 'namen-leiste', role: 'complementary', 'aria-label': titel }, kopf, namenListe(eintraege, true)));
+  } else {
+    // Fenster in der Mitte, Namen nach Einladung gruppiert
+    const hg = el('div', { class: 'modal-hg namen-fenster', onclick: ev => { if (ev.target === hg) zu(); } },
+      el('div', { class: 'modal breit links', role: 'dialog', 'aria-label': titel }, kopf, namenListe(eintraege, true)));
+    document.body.append(hg);
+  }
+}
+
 function tabUebersicht() {
   const e = A.daten.einheiten;
   const personen = e.flatMap(x => x.personen.map(p => ({ ...p, einladung: x.name, teil: teilnahme(p) })));
-  const z = (liste, f) => liste.filter(f).length;
-  const kachel = (zahl, was) => el('div', { class: 'kachel' }, el('div', { class: 'zahl' }, String(zahl)), el('div', { class: 'was' }, was));
-  const zt = t => z(personen, p => p.teil === t);
+  const pe = (f, info) => personen.filter(f).map(p => ({ name: p.name, gruppe: p.einladung, info: info ? info(p) : '' }));
+  const ee = (f, info) => e.filter(f).map(x => ({ name: x.name, info: info ? info(x) : '' }));
+  const pk = (was, f, info) => { const l = pe(f, info); return kachel(l.length, was, l); };
+  const ek = (was, f, info) => { const l = ee(f, info); return kachel(l.length, was, l); };
+  const ist = (...t) => p => t.includes(p.teil);
   const fragen = A.daten.fragen.filter(f => f.aktiv);
+  const kuchenFrage = fragen.find(f => f.id === 'kuchen');
 
   const aktualisieren = async ev => {
     ev.target.disabled = true; ev.target.textContent = 'Wird aktualisiert …';
@@ -167,23 +247,30 @@ function tabUebersicht() {
   };
 
   return el('div', {},
+    el('div', { class: 'uebersicht-kopf' }, el('p', { class: 'leise' }, 'Tipp: Auf eine Kachel klicken, um die Namen zu sehen.'), darstellungWahl()),
     el('h3', {}, 'Einladungen'),
     el('div', { class: 'kacheln' },
-      kachel(e.length, 'Einladungen gesamt'),
-      kachel(z(e, x => x.versendet), 'versandt'),
-      kachel(z(e, x => x.status && x.status !== 'Offen'), 'haben geantwortet'),
-      kachel(z(e, x => !x.status || x.status === 'Offen'), 'noch ohne Antwort'),
-      kachel(z(e, x => x.status === 'Abgesagt'), 'komplett abgesagt')),
+      ek('Einladungen gesamt', () => true, x => anzeigeStatus(x).text),
+      ek('versandt', x => x.versendet, x => x.versendetAm.split(' ')[0].replace(/,$/, '')),
+      ek('haben geantwortet', x => x.status && x.status !== 'Offen', x => x.status),
+      ek('noch ohne Antwort', x => !x.status || x.status === 'Offen', x => x.versendet ? 'versandt' : 'noch nicht versandt'),
+      ek('komplett abgesagt', x => x.status === 'Abgesagt')),
     el('h3', { style: 'margin-top:22px' }, 'Personen'),
     el('div', { class: 'kacheln' },
-      kachel(zt('Nur Nachmittag') + zt('Nachmittag + Abend'), 'Zusagen Nachmittag'),
-      kachel(zt('Nur Abend') + zt('Nachmittag + Abend'), 'Zusagen Abend'),
-      kachel(personen.length - zt('Abgesagt') - zt('Noch offen') - zt('Unsicher'), 'kommen insgesamt'),
-      kachel(zt('Nur Nachmittag'), 'nur Nachmittag'),
-      kachel(zt('Nachmittag + Abend'), 'Nachmittag + Abend'),
-      kachel(zt('Nur Abend'), 'nur Abend'),
-      kachel(zt('Abgesagt'), 'Absagen'),
-      kachel(zt('Noch offen') + zt('Unsicher'), 'noch offen / unsicher')),
+      pk('Zusagen Nachmittag', ist('Nur Nachmittag', 'Nachmittag + Abend')),
+      pk('Zusagen Abend', ist('Nur Abend', 'Nachmittag + Abend')),
+      pk('kommen insgesamt', ist(...TEILNAHME_ARTEN), p => p.teil),
+      pk('nur Nachmittag', ist('Nur Nachmittag')),
+      pk('Nachmittag + Abend', ist('Nachmittag + Abend')),
+      pk('nur Abend', ist('Nur Abend')),
+      pk('Absagen', ist('Abgesagt')),
+      pk('noch offen / unsicher', ist('Noch offen', 'Unsicher'), p => p.teil === 'Unsicher' ? 'unsicher' : '')),
+    kuchenFrage ? [
+      el('h3', { style: 'margin-top:22px' }, 'Kuchen'),
+      el('div', { class: 'kacheln' },
+        ek('bringen Kuchen mit', x => x.antworten?.kuchen === 'Ja', x => [x.antworten?.kuchen_art, einladungKommt(x)].filter(Boolean).join(' · ')),
+        ek('davon nachmittags da', x => x.antworten?.kuchen === 'Ja' && einladungKommt(x).startsWith('Nachmittag'), x => x.antworten?.kuchen_art || ''),
+        ek('davon nur abends da', x => x.antworten?.kuchen === 'Ja' && einladungKommt(x) === 'Abend', x => x.antworten?.kuchen_art || ''))] : null,
     fragen.map(f => frageAuswertung(f, personen, e)),
     el('div', { class: 'aktionen' },
       el('p', { class: 'leise' }, 'Die Blätter „App-Antworten Personen“, „App-Antworten Einladungen“ und „App-Auswertung“ werden bei jeder Rückmeldung und beim Speichern der Fragen automatisch neu erstellt.'),
@@ -212,13 +299,17 @@ function frageAuswertung(f, personen, einheiten) {
     return el('div', {}, titel, antwortListe(dabei.map(p => [p.name + ' · ' + p.teil, p.antworten[f.id]])));
   }
   const mitAntwort = einheiten.filter(x => hatWert(x.antworten?.[f.id]));
+  // Bei Kuchen (und allen Fragen pro Einladung) dazuschreiben, wann die Einladung da ist
+  const wann = x => ' · ' + einladungKommt(x);
   if (auswahl) {
     const optionen = f.typ === 'ja_nein' ? ['Ja', 'Nein'] : [...f.optionen];
-    return el('div', {}, titel, el('div', { class: 'kacheln' }, optionen.map(o =>
-      el('div', { class: 'kachel' }, el('div', { class: 'zahl' }, String(mitAntwort.filter(x => treffer(x.antworten[f.id], o)).length)), el('div', { class: 'was' }, o)))),
-      f.typ === 'ja_nein' ? antwortListe(mitAntwort.filter(x => x.antworten[f.id] === 'Ja').map(x => [x.name, 'Ja']), true) : null);
+    return el('div', {}, titel, el('div', { class: 'kacheln' }, optionen.map(o => {
+      const l = mitAntwort.filter(x => treffer(x.antworten[f.id], o)).map(x => ({ name: x.name, info: einladungKommt(x) }));
+      return kachel(l.length, o, l);
+    })),
+    f.typ === 'ja_nein' ? antwortListe(mitAntwort.filter(x => x.antworten[f.id] === 'Ja').map(x => [x.name + wann(x), 'Ja']), true) : null);
   }
-  return el('div', {}, titel, antwortListe(mitAntwort.map(x => [x.name, x.antworten[f.id]])));
+  return el('div', {}, titel, antwortListe(mitAntwort.map(x => [x.name + wann(x), x.antworten[f.id]])));
 }
 
 function antwortListe(eintraege, nurNamen = false) {
@@ -611,5 +702,11 @@ function tabEinstellungen() {
       el('button', { class: 'knopf', onclick: speichern }, 'Speichern')));
 }
 
+// Escape schließt eine offene Namensliste
+document.addEventListener('keydown', ev => {
+  if (ev.key !== 'Escape') return;
+  const offen = document.querySelector('.kachel.klickbar[aria-expanded="true"]');
+  if (offen) { offen.click(); offen.focus(); }
+});
 window.addEventListener('beforeunload', e => { if (A.geaendert) e.preventDefault(); });
 adminStart();
