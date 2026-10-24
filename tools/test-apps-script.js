@@ -205,4 +205,13 @@ const shK = sheets['App-Kalkulation'];
 assert.deepStrictEqual(shK.rows[4].slice(0, 7), ['Getränke', 'Bier', 'Helles', 2, 'Fass 30 l', 89.5, 179]);
 assert.strictEqual(post({ aktion: 'admin.kalkulationSpeichern', passwort: pw, kalkulation: kalk, stand: 'veraltet' }).ok, false);
 console.log('✓ Kalkulation: speichern, laden, lesbare Kopie, Schutz vor Überschreiben');
+// Große Kalkulation (z. B. mit Skizze) wird auf mehrere Zellen verteilt
+const gross = { ...geladen, skizze: { plaene: [{ id: 'p1', name: 'Test', objekte: Array.from({ length: 1500 }, (_, i) => ({ id: 'o' + i, typ: 'stuhl', x: i, y: i * 2, b: 45, t: 45, r: 90 })) }] } };
+r = post({ aktion: 'admin.kalkulationSpeichern', passwort: pw, kalkulation: gross, stand: geladen.stand });
+assert.ok(r.ok, 'große Kalkulation gespeichert');
+assert.ok(JSON.stringify(gross).length > 50000 && String(shK.get(2, 1)).length <= 45000 && shK.get(2, 3), 'auf mehrere Zellen verteilt');
+const grossGeladen = post({ aktion: 'admin.kalkulationLaden', passwort: pw }).kalkulation;
+assert.strictEqual(grossGeladen.skizze.plaene[0].objekte.length, 1500);
+assert.strictEqual(grossGeladen.skizze.plaene[0].objekte[1499].y, 2998);
+console.log('✓ Kalkulation: große Daten (Skizze) über mehrere Zellen');
 console.log('\nAlle Tests bestanden.');

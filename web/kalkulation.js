@@ -1,4 +1,4 @@
-// Kalkulation: Licht & Tontechnik und Getränke – gemeinsam bearbeitbar, gespeichert im Google Sheet (Blatt „App-Kalkulation“).
+// Kalkulation: Licht & Tontechnik, Getränke und Skizze (skizze.js) – gemeinsam bearbeitbar, gespeichert im Google Sheet (Blatt „App-Kalkulation“).
 
 const kRoot = document.getElementById('kalkulation');
 const K = { pw: '', daten: null, stand: '', bereich: 'technik', geaendert: false, neu: false };
@@ -165,22 +165,24 @@ function summenAktualisieren() {
 
 function kZeichnen() {
   const bereiche = K.daten.bereiche;
-  if (!bereiche.some(b => b.id === K.bereich)) K.bereich = bereiche[0].id;
+  const reiter = [...bereiche, { id: 'skizze', titel: 'Skizze' }];
+  if (!reiter.some(b => b.id === K.bereich)) K.bereich = bereiche[0].id;
   const bi = bereiche.findIndex(b => b.id === K.bereich);
+  const skizze = K.bereich === 'skizze';
   setzen(kRoot,
     el('nav', { class: 'tabs', role: 'tablist' },
       el('a', { class: 'tab-link', href: 'admin.html' }, '← Verwaltung'),
-      bereiche.map(b => el('button', { role: 'tab', 'aria-selected': String(b.id === K.bereich), onclick: () => {
+      reiter.map(b => el('button', { role: 'tab', 'aria-selected': String(b.id === K.bereich), onclick: () => {
         K.bereich = b.id;
         try { sessionStorage.setItem('einladung-kalk-bereich', b.id); } catch { /* egal */ }
         kZeichnen();
       } }, b.titel))),
     !window.EINLADUNG_API ? el('div', { class: 'meldung warn' }, 'Demo-Modus: Änderungen werden nur in diesem Browser gespeichert, nichts landet in eurer Tabelle.') : null,
     K.neu ? el('div', { class: 'meldung warn' }, 'Noch nicht gespeichert – das sind die Startwerte. Nach dem ersten „Speichern“ sehen alle mit Passwort denselben Stand.') : null,
-    el('div', { class: 'kacheln' },
+    skizze ? null : el('div', { class: 'kacheln' },
       bereiche.map((b, i) => el('div', { class: 'kachel' }, el('div', { class: 'zahl', 'data-summe': `${i}.-1.-1` }, euro(summeBereich(b))), el('div', { class: 'was' }, b.titel))),
       el('div', { class: 'kachel' }, el('div', { class: 'zahl', 'data-gesamt': '' }), el('div', { class: 'was' }, 'Gesamt (nur Positionen mit Preis)'))),
-    bereichAnsicht(bereiche[bi], bi),
+    skizze ? skizzeAnsicht(K.daten, geaendert) : bereichAnsicht(bereiche[bi], bi),
     el('div', { class: 'leiste' },
       el('div', { class: 'ungespeichert', hidden: !K.geaendert }, 'Ungespeicherte Änderungen'),
       el('button', { class: 'knopf zweit', onclick: () => { if (!K.geaendert || confirm('Ungespeicherte Änderungen verwerfen und neu laden?')) { K.geaendert = false; setzen(kRoot, el('p', { class: 'laden' }, 'Wird geladen …')); kStart(); } } }, 'Neu laden'),

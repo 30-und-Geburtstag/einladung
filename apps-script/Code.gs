@@ -628,13 +628,17 @@ function auswertungSchreiben_(ss, fragen, personen, antwortVon, letzte) {
   sh.setColumnWidths(2, breite - 1, 130);
 }
 
-// ---------------------------------------------------------------- Kalkulation (Licht & Ton, Getränke)
+// ---------------------------------------------------------------- Kalkulation (Licht & Ton, Getränke, Skizze)
 
-/** Gespeicherte Kalkulation (JSON in A2 von „App-Kalkulation“) – null, solange noch nie gespeichert wurde. */
+const KALK_STUECK = 45000; // eine Zelle fasst höchstens 50.000 Zeichen – längeres JSON (z. B. mit Skizze) wird aufgeteilt
+
+/** Gespeicherte Kalkulation (JSON in A2 von „App-Kalkulation“, Fortsetzung ab C2) – null, solange noch nie gespeichert wurde. */
 function kalkulationLaden_() {
   const sh = SpreadsheetApp.getActive().getSheetByName(BLATT_KALKULATION);
   if (!sh) return null;
-  const json = String(sh.getRange(2, 1, 1, 1).getValues()[0][0] || '');
+  const breite = Math.max(3, sh.getLastColumn());
+  const zeile = sh.getRange(2, 1, 1, breite).getValues()[0];
+  const json = [zeile[0]].concat(zeile.slice(2)).map(v => String(v || '')).join('');
   return json ? JSON.parse(json) : null;
 }
 
@@ -652,7 +656,14 @@ function kalkulationSpeichern_(kalk, stand) {
     const ss = SpreadsheetApp.getActive();
     const sh = blattLeeren_(ss, BLATT_KALKULATION);
     sh.getRange(1, 1, 1, 2).setValues([['Daten (JSON – bitte nicht von Hand ändern, wird von der Seite „Kalkulation“ geschrieben)', 'Gespeichert am']]).setFontWeight('bold');
-    sh.getRange(2, 1, 1, 2).setNumberFormat('@').setValues([[JSON.stringify(kalk), kalk.stand]]);
+    const json = JSON.stringify(kalk);
+    const stuecke = [];
+    for (let i = 0; i < json.length; i += KALK_STUECK) stuecke.push(json.slice(i, i + KALK_STUECK));
+    sh.getRange(2, 1, 1, 2).setNumberFormat('@').setValues([[stuecke[0], kalk.stand]]);
+    if (stuecke.length > 1) {
+      sh.getRange(1, 3).setValue('Fortsetzung der Daten').setFontWeight('bold');
+      sh.getRange(2, 3, 1, stuecke.length - 1).setNumberFormat('@').setValues([stuecke.slice(1)]);
+    }
     // Lesbare Kopie zum Nachschauen im Sheet
     const kopf = ['Bereich', 'Gruppe', 'Position', 'Menge', 'Einheit', 'Preis je Einheit (€)', 'Summe (€)', 'Status', 'Wer / Anbieter', 'Notiz'];
     const zeilen = [];

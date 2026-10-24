@@ -125,3 +125,71 @@ select.status-erledigt { border-color: #4d7a4a; color: #9fd59b; }
   .kalk-zeile .kalk-summe::before { content: 'Summe: '; color: var(--text2); }
   .kalk-knoepfe { justify-content: flex-end; }
 }
+
+/* ---------------------------------------------------------------- Skizze (Grundriss-Editor) */
+.sk { margin-top: 8px; }
+.sk-leiste { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 0 0 10px; padding: 10px 12px; background: var(--karte); border: 1px solid var(--linie); border-radius: var(--radius); }
+.sk-leiste .knopf.klein, .sk-aktionen .knopf.klein, .sk-plaene .knopf.klein { padding: 4px 11px; min-height: 32px; font-size: 14px; }
+.sk-leiste .knopf:disabled { opacity: .4; cursor: default; }
+.sk-gruppe, .sk-plaene { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.sk-plaene { margin-right: auto; }
+.sk-plaene select { width: auto; min-width: 160px; padding: 5px 8px; font-size: 15px; border-radius: 8px; }
+.sk-schalter { font-size: 14px; color: var(--text2); gap: 6px; }
+.sk-haupt { display: grid; grid-template-columns: 200px minmax(0, 1fr) 250px; gap: 10px; align-items: start; }
+.sk-flaeche { position: relative; height: min(72vh, 760px); background: #0d0c0a; border: 1px solid var(--linie); border-radius: var(--radius); overflow: hidden; touch-action: none; outline: none; }
+.sk-flaeche:focus-visible { border-color: var(--gold); }
+.sk-svg { display: block; width: 100%; height: 100%; cursor: grab; user-select: none; -webkit-user-select: none; }
+.sk-svg:active { cursor: grabbing; }
+.sk-svg [data-id] { cursor: move; }
+.sk-svg .sk-raum { cursor: pointer; }
+.sk-svg .sk-griff { cursor: pointer; }
+.sk-svg [data-griff="groesse"] { cursor: nwse-resize; }
+.sk-svg [data-griff="drehen"] { cursor: alias; }
+.sk-massstab { position: absolute; left: 14px; bottom: 12px; border: 2px solid var(--gold-hell); border-top: none; height: 9px; color: var(--gold-hell); font-size: 12px; line-height: 1; padding-top: 0; text-align: center; pointer-events: none; }
+.sk-massstab { padding-bottom: 14px; box-sizing: content-box; }
+.sk-bib, .sk-eig { background: var(--karte); border: 1px solid var(--linie); border-radius: var(--radius); padding: 8px; max-height: min(72vh, 760px); overflow-y: auto; }
+.sk-kat { margin-bottom: 4px; }
+.sk-kat summary { color: var(--gold); font-weight: 500; font-size: 14px; cursor: pointer; padding: 4px 4px; list-style-position: inside; }
+.sk-syms { display: grid; grid-template-columns: 1fr; gap: 2px; }
+.sk-sym { position: relative; display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: 1px solid transparent; border-radius: 8px; color: var(--text); font: inherit; font-size: 13.5px; text-align: left; padding: 3px 6px; cursor: grab; line-height: 1.2; }
+.sk-sym:hover, .sk-sym:focus-visible { border-color: var(--linie); background: var(--karte2); outline: none; }
+.sk-sym svg { flex: none; background: #15120d; border-radius: 6px; }
+.sk-sym-weg { margin-left: auto; color: var(--text2); padding: 0 4px; font-size: 16px; }
+.sk-sym-weg:hover { color: var(--fehler); }
+.sk-eigen-auf { margin: 6px 4px; }
+.sk-eigen[hidden] { display: none; }
+.sk-eigen { display: flex; flex-direction: column; gap: 6px; padding: 6px 4px; font-size: 13px; color: var(--text2); }
+.sk-eigen label { display: flex; flex-direction: column; gap: 2px; }
+.sk-eigen input, .sk-eigen select, .sk-feld input, .sk-feld select, .sk-feld textarea { padding: 5px 8px; font-size: 14px; border-radius: 8px; min-height: 0; }
+.sk-eigen input[type=color], .sk-farben input[type=color] { padding: 0 2px; height: 30px; width: 44px; }
+.sk-zwei { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sk-block { padding: 4px 4px 10px; }
+.sk-block + .sk-block { border-top: 1px solid var(--linie); padding-top: 10px; }
+.sk-block h3 { color: var(--gold-hell); font-weight: 500; font-size: 16px; margin: 2px 0 8px; }
+.sk-feld { display: flex; flex-direction: column; gap: 2px; margin-bottom: 7px; font-size: 13px; color: var(--text2); }
+.sk-farben { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.sk-farbe { width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(255,255,255,.3); cursor: pointer; padding: 0; }
+.sk-farbe:hover { transform: scale(1.15); }
+.sk-aktionen { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.sk-aktionen .sk-rot { color: var(--fehler); }
+.sk-leer { font-size: 13.5px; color: var(--text2); }
+.sk-leer p { margin: 0 0 4px; color: var(--text); }
+.sk-leer ul { padding-left: 18px; margin: 0; }
+.sk-ebene { font-size: 14px; gap: 8px; margin: 2px 0; }
+.sk-tabelle { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.sk-tabelle th { color: var(--gold); font-weight: 500; text-align: right; padding: 2px 4px; }
+.sk-tabelle td { padding: 2px 4px; border-top: 1px solid #2a2a2a; text-align: right; font-variant-numeric: tabular-nums; }
+.sk-tabelle td:first-child, .sk-tabelle th:first-child { text-align: left; }
+.sk-tabelle tr.sk-abweichung td { color: #f2c46b; }
+.sk-block .leise, .sk-tabelle + .leise { font-size: 12.5px; }
+@media (max-width: 1100px) {
+  .sk-haupt { grid-template-columns: 170px minmax(0, 1fr); }
+  .sk-eig { grid-column: 1 / -1; max-height: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+  .sk-block + .sk-block { border-top: none; padding-top: 4px; }
+}
+@media (max-width: 700px) {
+  .sk-haupt { grid-template-columns: 1fr; }
+  .sk-bib { max-height: 190px; }
+  .sk-syms { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .sk-flaeche { height: 62vh; }
+}
