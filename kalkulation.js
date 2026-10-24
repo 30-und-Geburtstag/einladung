@@ -259,6 +259,36 @@ function bedarfText(p) {
     : { text: teile.join(' ') + ` · ⚠ ${mengeText(-diff)} ${e} zu wenig`, art: 'knapp' };
 }
 
+/** Kurzform für die Spalte „Bestellt ↔ Bedarf“: „20 l · 3,9 l Reserve“ */
+function bedarfKurz(p) {
+  const voll = bedarfText(p);
+  const bedarf = zahl(p.bedarf), inhalt = zahl(p.inhalt), menge = zahl(p.menge), e = p.bedarfEinheit || 'l';
+  if (menge === '' || inhalt === '') return { text: '–', art: 'leer', titel: voll.text };
+  const gesamt = menge * inhalt, teil = `${mengeText(gesamt)} ${e}`;
+  if (bedarf === '') return { text: teil, art: 'leer', titel: voll.text };
+  const diff = Math.round((gesamt - bedarf) * 100) / 100;
+  if (diff === 0) return { text: teil + ' · passt genau', art: 'ok', titel: voll.text };
+  return diff > 0 ? { text: `${teil} · ${mengeText(diff)} ${e} Reserve`, art: 'ok', titel: voll.text }
+    : { text: `${teil} · ⚠ ${mengeText(-diff)} ${e} zu wenig`, art: 'knapp', titel: voll.text };
+}
+
+/** Darstellung einer Kategorie: Getränke mit Bedarf, Kuchen-Liste oder normale Positionen. */
+function gruppenArt(b, g) {
+  if (b.mitBedarf && g.positionen.some(p => zahl(p.bedarf) !== '')) return 'bedarf';
+  if (/kuchen/i.test(g.titel)) return 'kuchen';
+  return 'normal';
+}
+const KOPF = {
+  normal: ['Position', 'Menge', 'Einheit', 'Preis/Einheit €', 'Summe', 'Status', 'Wer / Anbieter', 'Notiz', ''],
+  bedarf: ['Position', 'Bedarf', 'Menge', 'Einheit', 'Inhalt je Einheit', 'Bestellt ↔ Bedarf', 'Preis/Einh. €', 'Summe', 'Status', 'Wer / Anbieter', 'Notiz', ''],
+  kuchen: ['Kuchen', 'Von', 'Anzahl', 'Status', 'Notiz', ''],
+};
+const KOPF_KLASSEN = {
+  normal: ['z-was', 'z-menge', 'z-einheit', 'z-preis', 'z-summe', 'z-status', 'z-wer', 'z-notiz', 'z-knoepfe'],
+  bedarf: ['z-was', 'z-bedarf', 'z-menge', 'z-einheit', 'z-inhalt', 'z-abgleich', 'z-preis', 'z-summe', 'z-status', 'z-wer', 'z-notiz', 'z-knoepfe'],
+  kuchen: ['z-was', 'z-wer', 'z-menge', 'z-status', 'z-notiz', 'z-knoepfe'],
+};
+
 // Eingeklappte Gruppen merkt sich nur dieser Browser
 const zuKey = (b, g) => b.id + '|' + g.titel;
 let zuGruppen = new Set();
@@ -323,8 +353,9 @@ function summenAktualisieren() {
     const [b, g, p] = x.dataset.bedarf.split('.').map(Number);
     const pos = K.daten.bereiche[b]?.gruppen[g]?.positionen[p];
     if (!pos) return;
-    const r = bedarfText(pos);
-    x.textContent = r.text; x.className = 'bedarf-text ' + r.art;
+    const r = x.dataset.kurz ? bedarfKurz(pos) : bedarfText(pos);
+    x.textContent = r.text; x.className = 'bedarf-text ' + r.art + (x.dataset.kurz ? ' z-abgleich' : '');
+    if (r.titel) x.title = r.titel;
   });
   document.querySelectorAll('[data-summe]').forEach(x => {
     const [b, g, p] = x.dataset.summe.split('.').map(Number);
@@ -389,14 +420,15 @@ function gruppeAnsicht(b, bi, g, gi) {
     } });
   const verschiebeGruppe = d => { const j = gi + d; if (j < 0 || j >= b.gruppen.length) return; [b.gruppen[gi], b.gruppen[j]] = [b.gruppen[j], b.gruppen[gi]]; geaendert(); kZeichnen(); };
   const umschalten = () => { zu ? zuGruppen.delete(zuKey(b, g)) : zuGruppen.add(zuKey(b, g)); zuMerken(); kZeichnen(); };
-  // Bedarfszeile, sobald in der Gruppe irgendwo ein Bedarf steht (dann auch für neue Zeilen)
-  const mitBedarf = b.mitBedarf && g.positionen.some(p => zahl(p.bedarf) !== '');
+  // Bedarfsspalten, sobald in der Gruppe irgendwo ein Bedarf steht (dann auch für neue Zeilen)
+  const art = gruppenArt(b, g);
+  const anzahlKuchen = art === 'kuchen' ? g.positionen.reduce((s, p) => s + (zahl(p.menge) || 0), 0) : 0;
   return el('div', { class: 'kalk-gruppe' + (zu ? ' zu' : '') },
     el('div', { class: 'kalk-gruppe-kopf' },
       el('button', { class: 'aufklapper', 'aria-expanded': String(!zu), 'aria-label': (zu ? 'Aufklappen: ' : 'Zuklappen: ') + g.titel, onclick: umschalten }, '›'),
       titel,
-      el('span', { class: 'leise' }, `${g.positionen.length} ${g.positionen.length === 1 ? 'Zeile' : 'Zeilen'}`),
-      el('span', { class: 'kalk-summe', 'data-summe': `${bi}.${gi}.-1` }),
+      el('span', { class: 'leise' }, art === 'kuchen' ? `${mengeText(anzahlKuchen)} Kuchen von ${new Set(g.positionen.map(p => p.wer).filter(Boolean)).size} Gästen` : `${g.positionen.length} ${g.positionen.length === 1 ? 'Zeile' : 'Zeilen'}`),
+      art === 'kuchen' ? null : el('span', { class: 'kalk-summe', 'data-summe': `${bi}.${gi}.-1` }),
       zu ? null : [
         el('button', { class: 'knopf zweit klein', title: 'Kategorie nach oben', 'aria-label': 'Kategorie nach oben', onclick: () => verschiebeGruppe(-1) }, '↑'),
         el('button', { class: 'knopf zweit klein', title: 'Kategorie nach unten', 'aria-label': 'Kategorie nach unten', onclick: () => verschiebeGruppe(1) }, '↓'),
@@ -405,52 +437,67 @@ function gruppeAnsicht(b, bi, g, gi) {
           b.gruppen.splice(gi, 1); geaendert(); kZeichnen();
         } }, 'Kategorie löschen')]),
     zu ? null : [
-      el('div', { class: 'kalk-kopfzeile', 'aria-hidden': 'true' },
-        ['Position', 'Menge', 'Einheit', 'Preis/Einheit €', 'Summe', 'Status', 'Wer / Anbieter', 'Notiz', ''].map(t => el('span', {}, t))),
-      ...g.positionen.map((p, pi) => zeileAnsicht(b, bi, g, gi, p, pi, mitBedarf)),
+      el('div', { class: 'kalk-kopfzeile art-' + art, 'aria-hidden': 'true' }, KOPF[art].map((t, i) => el('span', { class: KOPF_KLASSEN[art][i] }, t))),
+      ...g.positionen.map((p, pi) => zeileAnsicht(b, bi, g, gi, p, pi, art)),
       el('button', { class: 'knopf zweit klein', style: 'margin-top:8px', onclick: () => {
-        g.positionen.push(pos('', '', '')); geaendert(); kZeichnen();
+        g.positionen.push(art === 'kuchen' ? kuchen('', '', '', 'offen') : pos('', '', '')); geaendert(); kZeichnen();
         setTimeout(() => { const z = kRoot.querySelectorAll(`[data-gruppe="${gi}"] .f-was`); z[z.length - 1]?.focus(); }, 30);
       } }, '+ Zeile')]);
 }
 
-function zeileAnsicht(b, bi, g, gi, p, pi, mitBedarf) {
+function zeileAnsicht(b, bi, g, gi, p, pi, art) {
+  const mitBedarf = art === 'bedarf';
   const feld = (key, label, attrs = {}, alsZahl = false) => el('input', {
     type: 'text', value: alsZahl ? zahlText(p[key]) : (p[key] ?? ''), 'aria-label': label, placeholder: label, ...attrs,
     oninput: e => { p[key] = alsZahl ? zahl(e.target.value) : e.target.value; geaendert(); },
   });
-  const status = el('select', { 'aria-label': 'Status', class: 'status-' + (p.status || 'offen'),
-    onchange: e => { p.status = e.target.value; e.target.className = 'status-' + p.status; geaendert(); } },
+  const status = el('select', { 'aria-label': 'Status', class: 'z-status status-' + (p.status || 'offen'),
+    onchange: e => { p.status = e.target.value; e.target.className = 'z-status status-' + p.status; geaendert(); } },
     STATUS.map(s => el('option', { value: s, selected: s === (p.status || 'offen') }, s)));
   const schieben = d => { const j = pi + d; if (j < 0 || j >= g.positionen.length) return; [g.positionen[pi], g.positionen[j]] = [g.positionen[j], g.positionen[pi]]; geaendert(); kZeichnen(); };
-  const einheitFeld = feld('einheit', 'Einheit');
+  const knoepfe = el('div', { class: 'kalk-knoepfe z-knoepfe' },
+    el('button', { class: 'knopf zweit klein', title: 'Nach oben', 'aria-label': 'Nach oben', onclick: () => schieben(-1) }, '↑'),
+    el('button', { class: 'knopf zweit klein', title: 'Nach unten', 'aria-label': 'Nach unten', onclick: () => schieben(1) }, '↓'),
+    el('button', { class: 'knopf zweit klein', title: 'Zeile entfernen', 'aria-label': 'Zeile entfernen', onclick: () => {
+      if ((p.was || p.notiz) && !confirm(`Zeile „${p.was || 'ohne Namen'}“ entfernen?`)) return;
+      g.positionen.splice(pi, 1); geaendert(); kZeichnen();
+    } }, '×'));
+  const zeile = (...kinder) => el('div', { class: 'kalk-zeile art-' + art, 'data-gruppe': String(gi) }, ...kinder);
+
+  if (art === 'kuchen') {
+    return zeile(
+      feld('was', 'Kuchen', { class: 'f-was z-was' }),
+      feld('wer', 'Von', { class: 'z-wer' }),
+      feld('menge', 'Anzahl', { inputmode: 'decimal', class: 'f-zahl z-menge' }, true),
+      status,
+      feld('notiz', 'Notiz', { class: 'f-notiz z-notiz' }),
+      knoepfe);
+  }
+
+  const einheitFeld = feld('einheit', 'Einheit', { class: 'z-einheit' });
   einheitFeld.addEventListener('change', () => {
     // Inhalt je Einheit automatisch übernehmen, wenn er sich aus dem Text ablesen lässt (z. B. „Kiste 20 × 0,5 l“)
     const [n] = inhaltAus(p.einheit);
     if (mitBedarf && n !== '' && n !== zahl(p.inhalt)) { p.inhalt = n; geaendert(); kZeichnen(); }
   });
-  if (mitBedarf && !p.bedarfEinheit) p.bedarfEinheit = 'l';
-  return el('div', { class: 'kalk-zeile', 'data-gruppe': String(gi) },
-    feld('was', 'Position', { class: 'f-was' }),
-    feld('menge', 'Menge', { inputmode: 'decimal', class: 'f-zahl' }, true),
-    einheitFeld,
-    feld('preis', 'Preis je Einheit (€)', { inputmode: 'decimal', class: 'f-zahl' }, true),
-    el('span', { class: 'kalk-summe', 'data-summe': `${bi}.${gi}.${pi}` }),
-    status,
-    feld('wer', 'Wer / Anbieter'),
-    feld('notiz', 'Notiz', { class: 'f-notiz' }),
-    el('div', { class: 'kalk-knoepfe' },
-      el('button', { class: 'knopf zweit klein', title: 'Nach oben', 'aria-label': 'Nach oben', onclick: () => schieben(-1) }, '↑'),
-      el('button', { class: 'knopf zweit klein', title: 'Nach unten', 'aria-label': 'Nach unten', onclick: () => schieben(1) }, '↓'),
-      el('button', { class: 'knopf zweit klein', title: 'Zeile entfernen', 'aria-label': 'Zeile entfernen', onclick: () => {
-        if ((p.was || p.notiz) && !confirm(`Zeile „${p.was || 'ohne Namen'}“ entfernen?`)) return;
-        g.positionen.splice(pi, 1); geaendert(); kZeichnen();
-      } }, '×')),
-    mitBedarf ? el('div', { class: 'kalk-bedarf' },
-      el('label', {}, 'Bedarf', feld('bedarf', 'Bedarf', { inputmode: 'decimal', class: 'f-klein' }, true),
-        feld('bedarfEinheit', 'Einheit des Bedarfs', { class: 'f-mini' })),
-      el('label', {}, 'Inhalt je Einheit', feld('inhalt', 'Inhalt je Einheit', { inputmode: 'decimal', class: 'f-klein' }, true)),
-      el('span', { 'data-bedarf': `${bi}.${gi}.${pi}` })) : null);
+  const menge = feld('menge', 'Menge', { inputmode: 'decimal', class: 'f-zahl z-menge' }, true);
+  const preis = feld('preis', 'Preis je Einheit (€)', { inputmode: 'decimal', class: 'f-zahl z-preis' }, true);
+  const summe = el('span', { class: 'kalk-summe z-summe', 'data-summe': `${bi}.${gi}.${pi}` });
+  const wer = feld('wer', 'Wer / Anbieter', { class: 'z-wer' });
+  const notiz = feld('notiz', 'Notiz', { class: 'f-notiz z-notiz' });
+  if (!mitBedarf) return zeile(feld('was', 'Position', { class: 'f-was z-was' }), menge, einheitFeld, preis, summe, status, wer, notiz, knoepfe);
+
+  if (!p.bedarfEinheit) p.bedarfEinheit = 'l';
+  return zeile(
+    feld('was', 'Position', { class: 'f-was z-was' }),
+    el('label', { class: 'z-bedarf' }, el('span', { class: 'z-label' }, 'Bedarf'),
+      feld('bedarf', 'Bedarf', { inputmode: 'decimal', class: 'f-zahl' }, true),
+      feld('bedarfEinheit', 'Einheit des Bedarfs', { class: 'f-mini' })),
+    menge, einheitFeld,
+    el('label', { class: 'z-inhalt' }, el('span', { class: 'z-label' }, 'Inhalt je Einheit'),
+      feld('inhalt', 'Inhalt je Einheit', { inputmode: 'decimal', class: 'f-zahl' }, true)),
+    el('span', { 'data-bedarf': `${bi}.${gi}.${pi}`, 'data-kurz': '1', class: 'z-abgleich' }),
+    preis, summe, status, wer, notiz, knoepfe);
 }
 
 async function kSpeichern(ev) {

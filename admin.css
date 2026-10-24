@@ -99,42 +99,73 @@
 .darstellung-wahl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .darstellung-wahl .wahl button { min-height: 34px; padding: 4px 14px; font-size: 14px; }
 
-/* Kalkulation (Licht & Ton, Getränke) */
-.rahmen.kalk { max-width: 1360px; }
+/* Kalkulation (Licht & Ton, Getränke & Kuchen, Material) – nutzt die volle Bildschirmbreite */
+.rahmen.kalk { max-width: none; margin-left: 16px; margin-right: 16px; }
+@media (max-width: 760px) { .rahmen.kalk { margin-left: 8px; margin-right: 8px; } }
 .tabs .tab-link { color: var(--text2); padding: 8px 14px; font-size: 16px; text-decoration: none; border-radius: 999px; }
 .tabs .tab-link:hover { color: var(--gold-hell); }
-.kalk-gruppe { background: var(--karte); border: 1px solid var(--linie); border-radius: var(--radius); padding: 14px; margin: 16px 0; }
+.kalk-gruppe { background: var(--karte); border: 1px solid var(--linie); border-radius: var(--radius); padding: 14px 16px; margin: 16px 0; }
 .kalk-gruppe-kopf { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
 .kalk-gruppe-kopf .gruppe-titel-feld { flex: 1 1 220px; font-weight: 500; color: var(--gold-hell); font-size: 18px; }
 .kalk-gruppe-kopf .kalk-summe { color: var(--gold-hell); font-weight: 500; margin-right: 6px; }
-.kalk-kopfzeile, .kalk-zeile { display: grid; grid-template-columns: minmax(160px, 2.2fr) 70px minmax(90px, 1.1fr) 80px 84px 108px minmax(90px, 1fr) minmax(120px, 1.6fr) auto; gap: 6px; align-items: center; }
+
+.kalk-kopfzeile, .kalk-zeile { display: grid; gap: 6px 8px; align-items: center; }
+.art-normal { grid-template-columns: minmax(200px, 2.4fr) 76px minmax(110px, 1.1fr) 92px 96px 118px minmax(130px, 1.2fr) minmax(180px, 2.6fr) auto; }
+.art-bedarf { grid-template-columns: minmax(180px, 2fr) 128px 66px minmax(120px, 1.1fr) 80px minmax(200px, 1.6fr) 84px 92px 118px minmax(110px, 1fr) minmax(150px, 1.8fr) auto; }
+.art-kuchen { grid-template-columns: minmax(200px, 1.8fr) minmax(170px, 1.3fr) 76px 118px minmax(240px, 3.2fr) auto; }
 .kalk-kopfzeile { color: var(--gold); font-size: 13px; padding: 0 2px 4px; }
 .kalk-zeile { padding: 4px 0; border-top: 1px solid #2a2a2a; }
-.kalk-zeile input, .kalk-zeile select { padding: 6px 8px; font-size: 15px; border-radius: 8px; }
+.kalk-zeile:hover { background: rgba(201, 154, 91, .04); }
+.kalk-zeile input, .kalk-zeile select { padding: 6px 8px; font-size: 15px; border-radius: 8px; min-width: 0; }
 .kalk-zeile .f-zahl { text-align: right; }
 .kalk-zeile .kalk-summe { text-align: right; font-variant-numeric: tabular-nums; font-size: 15px; }
+.kalk-zeile .z-was { font-weight: 400; }
 .kalk-knoepfe { display: flex; gap: 4px; }
 .kalk-knoepfe .knopf.klein { padding: 4px 9px; min-height: 32px; }
+.z-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.z-bedarf { display: flex; gap: 4px; align-items: center; min-width: 0; }
+.z-bedarf .f-zahl { flex: 1 1 auto; width: 0; }
+.z-bedarf .f-mini { flex: 0 0 46px; width: 46px; padding: 6px 4px; text-align: center; }
+.z-inhalt { display: flex; min-width: 0; }
+.z-inhalt input { width: 100%; }
+.z-abgleich { font-size: 14px; line-height: 1.25; color: var(--text2); }
+.bedarf-text.ok { color: var(--ok); }
+.bedarf-text.knapp { color: var(--fehler); font-weight: 500; }
 select.status-angefragt { border-color: #8f7a1f; color: #f0d264; }
+select.status-zugesagt { border-color: #6a7f3a; color: #cfe39a; }
 select.status-bestellt { border-color: #4d6a8a; color: #9cc3f0; }
 select.status-erledigt { border-color: #4d7a4a; color: #9fd59b; }
-@media (max-width: 900px) {
-  .kalk-kopfzeile { display: none; }
-  .kalk-zeile { grid-template-columns: 1fr 1fr; padding: 10px 0; }
-  .kalk-zeile .f-was, .kalk-zeile .f-notiz { grid-column: 1 / -1; }
-  .kalk-zeile .kalk-summe::before { content: 'Summe: '; color: var(--text2); }
-  .kalk-knoepfe { justify-content: flex-end; }
-}
 .kalk-gruppe .aufklapper { font: inherit; font-size: 22px; line-height: 1; background: none; border: 1.5px solid var(--gold); color: var(--gold); border-radius: 999px; width: 34px; height: 34px; cursor: pointer; transform: rotate(90deg); transition: transform .15s; }
 .kalk-gruppe.zu .aufklapper { transform: none; }
 .kalk-gruppe.zu { padding-bottom: 10px; }
 .kalk-gruppe.zu .kalk-gruppe-kopf { margin-bottom: 0; }
-.kalk-bedarf { grid-column: 1 / -1; display: flex; gap: 6px 14px; align-items: center; flex-wrap: wrap; font-size: 14px; color: var(--text2); padding: 2px 0 4px 12px; border-left: 2px solid var(--linie); margin-left: 4px; }
-.kalk-bedarf label { display: flex; gap: 6px; align-items: center; }
-.kalk-bedarf .f-klein { width: 70px; text-align: right; padding: 4px 6px; font-size: 14px; }
-.kalk-bedarf .f-mini { width: 54px; padding: 4px 6px; font-size: 14px; }
-.bedarf-text.ok { color: var(--ok); }
-.bedarf-text.knapp { color: var(--fehler); font-weight: 500; }
+
+/* Mittlere Breite: Getränke zweizeilig – oben Bestellung, darunter Bedarf und Abgleich */
+@media (max-width: 1500px) {
+  .art-bedarf { grid-template-columns: minmax(170px, 2fr) 70px minmax(110px, 1fr) 84px 92px 112px minmax(100px, 1fr) minmax(140px, 1.6fr) auto;
+    grid-template-areas: "was menge einheit preis summe status wer notiz knoepfe" "bedarf bedarf inhalt inhalt abgleich abgleich abgleich abgleich ."; }
+  .art-bedarf > .z-was { grid-area: was; } .art-bedarf > .z-menge { grid-area: menge; } .art-bedarf > .z-einheit { grid-area: einheit; }
+  .art-bedarf > .z-preis { grid-area: preis; } .art-bedarf > .z-summe { grid-area: summe; } .art-bedarf > .z-status { grid-area: status; }
+  .art-bedarf > .z-wer { grid-area: wer; } .art-bedarf > .z-notiz { grid-area: notiz; } .art-bedarf > .z-knoepfe { grid-area: knoepfe; }
+  .art-bedarf > .z-bedarf { grid-area: bedarf; } .art-bedarf > .z-inhalt { grid-area: inhalt; } .art-bedarf > .z-abgleich { grid-area: abgleich; }
+  .kalk-kopfzeile.art-bedarf > .z-bedarf, .kalk-kopfzeile.art-bedarf > .z-inhalt, .kalk-kopfzeile.art-bedarf > .z-abgleich { display: none; }
+  .kalk-zeile.art-bedarf .z-label { position: static; width: auto; height: auto; clip: auto; font-size: 13px; color: var(--text2); flex: none; }
+  .kalk-zeile.art-bedarf .z-bedarf, .kalk-zeile.art-bedarf .z-inhalt { gap: 6px; align-items: center; }
+  .kalk-zeile.art-bedarf .z-bedarf .f-zahl, .kalk-zeile.art-bedarf .z-inhalt input { flex: 0 1 80px; width: 80px; }
+  .kalk-zeile.art-bedarf > .z-bedarf { padding-left: 12px; border-left: 2px solid var(--linie); }
+}
+
+/* Handy: jede Position als kleine Karte */
+@media (max-width: 900px) {
+  .kalk-kopfzeile { display: none; }
+  .kalk-zeile, .kalk-zeile.art-bedarf, .kalk-zeile.art-kuchen { grid-template-columns: 1fr 1fr; grid-template-areas: none; padding: 10px 0; }
+  .kalk-zeile.art-bedarf > * { grid-area: auto; }
+  .kalk-zeile.kalk-zeile > .f-was, .kalk-zeile.kalk-zeile > .f-notiz, .kalk-zeile.kalk-zeile > .z-abgleich { grid-column: 1 / -1; }
+  .kalk-zeile .kalk-summe::before { content: 'Summe: '; color: var(--text2); }
+  .kalk-zeile .z-label { position: static; width: auto; height: auto; clip: auto; font-size: 13px; color: var(--text2); flex: none; margin-right: 4px; }
+  .kalk-zeile > .z-bedarf { padding-left: 0; border-left: none; }
+  .kalk-knoepfe { justify-content: flex-end; }
+}
 
 /* ---------------------------------------------------------------- Skizze (Grundriss-Editor) */
 .sk { margin-top: 8px; }
