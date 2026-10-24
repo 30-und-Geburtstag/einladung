@@ -125,3 +125,13 @@ select.status-erledigt { border-color: #4d7a4a; color: #9fd59b; }
   .kalk-zeile .kalk-summe::before { content: 'Summe: '; color: var(--text2); }
   .kalk-knoepfe { justify-content: flex-end; }
 }
+.kalk-gruppe .aufklapper { font: inherit; font-size: 22px; line-height: 1; background: none; border: 1.5px solid var(--gold); color: var(--gold); border-radius: 999px; width: 34px; height: 34px; cursor: pointer; transform: rotate(90deg); transition: transform .15s; }
+.kalk-gruppe.zu .aufklapper { transform: none; }
+.kalk-gruppe.zu { padding-bottom: 10px; }
+.kalk-gruppe.zu .kalk-gruppe-kopf { margin-bottom: 0; }
+.kalk-bedarf { grid-column: 1 / -1; display: flex; gap: 6px 14px; align-items: center; flex-wrap: wrap; font-size: 14px; color: var(--text2); padding: 2px 0 4px 12px; border-left: 2px solid var(--linie); margin-left: 4px; }
+.kalk-bedarf label { display: flex; gap: 6px; align-items: center; }
+.kalk-bedarf .f-klein { width: 70px; text-align: right; padding: 4px 6px; font-size: 14px; }
+.kalk-bedarf .f-mini { width: 54px; padding: 4px 6px; font-size: 14px; }
+.bedarf-text.ok { color: var(--ok); }
+.bedarf-text.knapp { color: var(--fehler); font-weight: 500; }
