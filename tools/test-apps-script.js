@@ -213,5 +213,6 @@ assert.ok(JSON.stringify(gross).length > 50000 && String(shK.get(2, 1)).length <
 const grossGeladen = post({ aktion: 'admin.kalkulationLaden', passwort: pw }).kalkulation;
 assert.strictEqual(grossGeladen.skizze.plaene[0].objekte.length, 1500);
 assert.strictEqual(grossGeladen.skizze.plaene[0].objekte[1499].y, 2998);
-console.log('✓ Kalkulation: große Daten (Skizze) über mehrere Zellen');
+assert.ok(shK.rows.some(r => r[0] === 'Test' && r[1] === 'Stuhl' && r[2] === 1500), 'Skizze lesbar im Sheet');
+console.log('✓ Kalkulation: große Daten (Skizze) über mehrere Zellen, Skizze lesbar im Sheet');
 console.log('\nAlle Tests bestanden.');

@@ -12,11 +12,14 @@
   dann „Speichern“. Gespeichert wird im Blatt **App-Kalkulation** (dort auch als lesbare Tabelle).
   Hat jemand anderes inzwischen gespeichert, warnt die Seite statt zu überschreiben.
   Die Getränke-Startwerte stammen aus `planung/2026-10-24_Getraenkekalkulation.xlsx` (liegt nur lokal, nicht im Repo).
-  Dritter Reiter **Skizze**: Grundriss-Editor (`web/skizze.js`) – Räume (Ecken ziehen), Mauern, Bögen, Balken, Türen,
+  Die Seite nutzt die ganze Bildschirmbreite: Getränke mit Bedarf, Menge, Inhalt und Abgleich „Bestellt ↔ Bedarf“ in einer Zeile
+  (auf kleineren Bildschirmen zweizeilig, am Handy als Karte); Kuchen als eigene schlanke Liste (Kuchen, von wem, Anzahl, Status, Notiz).
+  Vierter Reiter **Skizze**: Grundriss-Editor (`web/skizze.js`) – Räume (Ecken ziehen), Mauern, Bögen, Balken, Türen,
   Möbel, Licht (mit Lichtschein), Ton, Strom/Sicherheit, Beschriftungen und eigene Symbole; mehrere Pläne, Ebenen,
   Rückgängig, Export als PNG/SVG, Abgleich „Plan ↔ Kalkulation“. Wird mit „Speichern“ zusammen mit der Kalkulation gespeichert.
   Der Startgrundriss ist nach Fotos/Videos vom 24.10.2026 geschätzt. Große Daten verteilt das Skript auf mehrere Zellen
   (A2, dann ab C2) – dafür muss die aktuelle `Code.gs` bereitgestellt sein (sonst Grenze ≈ 50.000 Zeichen).
+  Unter der lesbaren Tabelle steht im Blatt zusätzlich, was in welchem Skizzen-Plan eingezeichnet ist.
 - **Google-Skript** (`apps-script/Code.gs`) – speichert alles direkt in eurem Google Sheet.
 
 ## Einmalig einrichten (ca. 10 Minuten)

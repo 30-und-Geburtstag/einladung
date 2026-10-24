@@ -630,6 +630,15 @@ function auswertungSchreiben_(ss, fragen, personen, antwortVon, letzte) {
 
 // ---------------------------------------------------------------- Kalkulation (Licht & Ton, Getränke, Skizze)
 
+const SKIZZE_NAMEN = {
+  raum: 'Raum', mauer: 'Mauer', wand: 'Mauerstück', pfeiler: 'Pfeiler', bogen: 'Bogen / Durchgang', balken: 'Balken / Träger', tuer: 'Tür',
+  notausgang: 'Notausgang', fenster: 'Fenster', treppe: 'Treppe', nische: 'Nische', tisch: 'Tisch', tischrund: 'Runder Tisch', stehtisch: 'Stehtisch',
+  bank: 'Bank', stuhl: 'Stuhl', theke: 'Theke', arbeitstheke: 'Arbeitsfläche', buffet: 'Buffettisch', zapfanlage: 'Zapfanlage', kuehlschrank: 'Kühlschrank',
+  sofa: 'Sofa / Lounge', uplight: 'Uplight', deckenleuchte: 'Deckenleuchte (vorhanden)', lichtbar: 'Lichtbar', spot: 'Scheinwerfer / Spot',
+  movinghead: 'Moving Head', spiegelkugel: 'Spiegelkugel', laterne: 'Laterne / Kerze', kette: 'Lichterkette', box: 'Lautsprecher', subwoofer: 'Subwoofer',
+  mischpult: 'DJ / Mischpult', mikrofon: 'Mikrofon', steckdose: 'Steckdose', verteiler: 'Mehrfachsteckdose', kabel: 'Kabel', weg: 'Rettungsweg',
+  feuerloescher: 'Feuerlöscher', rauchmelder: 'Rauchmelder', bereich: 'Bereich / Zone', text: 'Text', pfeil: 'Pfeil',
+};
 const KALK_STUECK = 45000; // eine Zelle fasst höchstens 50.000 Zeichen – längeres JSON (z. B. mit Skizze) wird aufgeteilt
 
 /** Gespeicherte Kalkulation (JSON in A2 von „App-Kalkulation“, Fortsetzung ab C2) – null, solange noch nie gespeichert wurde. */
@@ -676,6 +685,21 @@ function kalkulationSpeichern_(kalk, stand) {
     })));
     sh.getRange(4, 1, 1, kopf.length).setValues([kopf]).setBackground(FARBE_KOPF).setFontColor('#FFFFFF').setFontWeight('bold');
     if (zeilen.length) sh.getRange(5, 1, zeilen.length, kopf.length).setValues(zeilen);
+    // Skizze: was steht in welchem Plan (nur zum Nachschauen)
+    const plaene = (kalk.skizze && kalk.skizze.plaene) || [];
+    if (plaene.length) {
+      const eigene = {};
+      (kalk.skizze.symbole || []).forEach(s => { eigene[s.key] = s.name; });
+      const skZeilen = [];
+      plaene.forEach(pl => {
+        const anzahl = {};
+        (pl.objekte || []).forEach(o => { const n = SKIZZE_NAMEN[o.typ] || eigene[o.typ] || o.typ; anzahl[n] = (anzahl[n] || 0) + 1; });
+        Object.keys(anzahl).sort().forEach(n => skZeilen.push([pl.name || '', n, anzahl[n]]));
+      });
+      const start = 5 + zeilen.length + 2;
+      sh.getRange(start, 1, 1, 3).setValues([['Skizze – Plan', 'Objekt', 'Anzahl']]).setBackground(FARBE_KOPF).setFontColor('#FFFFFF').setFontWeight('bold');
+      if (skZeilen.length) sh.getRange(start + 1, 1, skZeilen.length, 3).setValues(skZeilen);
+    }
     sh.setColumnWidths(1, kopf.length, 150);
     sh.setColumnWidth(1, 300);
     return kalk;
