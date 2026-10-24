@@ -98,3 +98,30 @@
 .uebersicht-kopf p { margin: 0; }
 .darstellung-wahl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .darstellung-wahl .wahl button { min-height: 34px; padding: 4px 14px; font-size: 14px; }
+
+/* Kalkulation (Licht & Ton, Getränke) */
+.rahmen.kalk { max-width: 1360px; }
+.tabs .tab-link { color: var(--text2); padding: 8px 14px; font-size: 16px; text-decoration: none; border-radius: 999px; }
+.tabs .tab-link:hover { color: var(--gold-hell); }
+.kalk-gruppe { background: var(--karte); border: 1px solid var(--linie); border-radius: var(--radius); padding: 14px; margin: 16px 0; }
+.kalk-gruppe-kopf { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.kalk-gruppe-kopf .gruppe-titel-feld { flex: 1 1 220px; font-weight: 500; color: var(--gold-hell); font-size: 18px; }
+.kalk-gruppe-kopf .kalk-summe { color: var(--gold-hell); font-weight: 500; margin-right: 6px; }
+.kalk-kopfzeile, .kalk-zeile { display: grid; grid-template-columns: minmax(160px, 2.2fr) 70px minmax(90px, 1.1fr) 80px 84px 108px minmax(90px, 1fr) minmax(120px, 1.6fr) auto; gap: 6px; align-items: center; }
+.kalk-kopfzeile { color: var(--gold); font-size: 13px; padding: 0 2px 4px; }
+.kalk-zeile { padding: 4px 0; border-top: 1px solid #2a2a2a; }
+.kalk-zeile input, .kalk-zeile select { padding: 6px 8px; font-size: 15px; border-radius: 8px; }
+.kalk-zeile .f-zahl { text-align: right; }
+.kalk-zeile .kalk-summe { text-align: right; font-variant-numeric: tabular-nums; font-size: 15px; }
+.kalk-knoepfe { display: flex; gap: 4px; }
+.kalk-knoepfe .knopf.klein { padding: 4px 9px; min-height: 32px; }
+select.status-angefragt { border-color: #8f7a1f; color: #f0d264; }
+select.status-bestellt { border-color: #4d6a8a; color: #9cc3f0; }
+select.status-erledigt { border-color: #4d7a4a; color: #9fd59b; }
+@media (max-width: 900px) {
+  .kalk-kopfzeile { display: none; }
+  .kalk-zeile { grid-template-columns: 1fr 1fr; padding: 10px 0; }
+  .kalk-zeile .f-was, .kalk-zeile .f-notiz { grid-column: 1 / -1; }
+  .kalk-zeile .kalk-summe::before { content: 'Summe: '; color: var(--text2); }
+  .kalk-knoepfe { justify-content: flex-end; }
+}

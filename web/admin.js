@@ -118,7 +118,8 @@ function zeichneAdmin() {
   const inhalt = { uebersicht: tabUebersicht, einladungen: tabEinladungen, fragen: tabFragen, einstellungen: tabEinstellungen }[A.tab]();
   setzen(root, 
     el('nav', { class: 'tabs', role: 'tablist' }, Object.entries(tabs).map(([k, t]) =>
-      el('button', { role: 'tab', 'aria-selected': String(A.tab === k), onclick: () => tabWechsel(k) }, t))),
+      el('button', { role: 'tab', 'aria-selected': String(A.tab === k), onclick: () => tabWechsel(k) }, t)),
+      el('a', { class: 'tab-link', href: 'kalkulation.html' }, 'Kalkulation →')),
     !window.EINLADUNG_API ? el('div', { class: 'meldung warn' }, 'Demo-Modus: Es werden nur Beispieldaten in diesem Browser gespeichert, nichts landet in eurer Tabelle.') : null,
     inhalt);
 }

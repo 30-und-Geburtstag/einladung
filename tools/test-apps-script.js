@@ -192,4 +192,17 @@ console.log('✓ Versand protokollieren + zurücksetzen, Telefonnummer');
 post({ aktion: 'admin.einstellungenSpeichern', passwort: pw, einstellungen: { 'Formular offen': 'Nein' } });
 assert.strictEqual(post({ aktion: 'gast.senden', code: code1, personen: [], antworten: {} }).ok, false);
 console.log('✓ Formular geschlossen blockiert Antworten');
+// Kalkulation speichern / laden / Konflikt
+assert.strictEqual(post({ aktion: 'admin.kalkulationLaden', passwort: pw }).kalkulation, null);
+assert.strictEqual(post({ aktion: 'admin.kalkulationLaden', passwort: 'falsch' }).ok, false);
+const kalk = { bereiche: [{ id: 'getraenke', titel: 'Getränke', notiz: '', gruppen: [{ titel: 'Bier', positionen: [{ was: 'Helles', menge: 2, einheit: 'Fass 30 l', preis: 89.5, status: 'offen', wer: '', notiz: '' }] }] }] };
+r = post({ aktion: 'admin.kalkulationSpeichern', passwort: pw, kalkulation: kalk, stand: '' });
+assert.ok(r.ok && r.kalkulation.stand, 'Kalkulation gespeichert');
+const geladen = post({ aktion: 'admin.kalkulationLaden', passwort: pw }).kalkulation;
+assert.strictEqual(geladen.bereiche[0].gruppen[0].positionen[0].menge, 2);
+assert.strictEqual(geladen.stand, r.kalkulation.stand);
+const shK = sheets['App-Kalkulation'];
+assert.deepStrictEqual(shK.rows[4].slice(0, 7), ['Getränke', 'Bier', 'Helles', 2, 'Fass 30 l', 89.5, 179]);
+assert.strictEqual(post({ aktion: 'admin.kalkulationSpeichern', passwort: pw, kalkulation: kalk, stand: 'veraltet' }).ok, false);
+console.log('✓ Kalkulation: speichern, laden, lesbare Kopie, Schutz vor Überschreiben');
 console.log('\nAlle Tests bestanden.');

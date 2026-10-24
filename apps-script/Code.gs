@@ -15,6 +15,7 @@ const BLATT_EINSTELLUNGEN = 'App-Einstellungen';
 const BLATT_ANTW_PERSONEN = 'App-Antworten Personen';
 const BLATT_ANTW_EINHEITEN = 'App-Antworten Einladungen';
 const BLATT_PROTOKOLL = 'App-Protokoll';
+const BLATT_KALKULATION = 'App-Kalkulation';
 
 const SP = {
   personId: 'Person-ID',
@@ -172,6 +173,8 @@ const AKTIONEN = {
   'admin.tabellenAktualisieren': () => { antwortBlaetterNeuAufbauen_(); return adminDaten_(); },
   'admin.einstellungenSpeichern': req => { einstellungenSpeichern_(req.einstellungen); codesErzeugen_(); return adminDaten_(); },
   'admin.codesErzeugen': () => { codesErzeugen_(); return adminDaten_(); },
+  'admin.kalkulationLaden': () => ({ kalkulation: kalkulationLaden_() }),
+  'admin.kalkulationSpeichern': req => ({ kalkulation: kalkulationSpeichern_(req.kalkulation, req.stand) }),
 };
 
 function antwort_(obj) {
@@ -623,6 +626,57 @@ function auswertungSchreiben_(ss, fragen, personen, antwortVon, letzte) {
   koepfe.forEach(([z, b]) => sh.getRange(z, 1, 1, b).setBackground(FARBE_KOPF).setFontColor('#FFFFFF').setFontWeight('bold').setWrap(true));
   sh.setColumnWidth(1, 260);
   sh.setColumnWidths(2, breite - 1, 130);
+}
+
+// ---------------------------------------------------------------- Kalkulation (Licht & Ton, Getränke)
+
+/** Gespeicherte Kalkulation (JSON in A2 von „App-Kalkulation“) – null, solange noch nie gespeichert wurde. */
+function kalkulationLaden_() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(BLATT_KALKULATION);
+  if (!sh) return null;
+  const json = String(sh.getRange(2, 1, 1, 1).getValues()[0][0] || '');
+  return json ? JSON.parse(json) : null;
+}
+
+/** Speichert die Kalkulation. „stand“ = Zeitstempel beim Laden – so überschreibt niemand unbemerkt die Änderungen des anderen. */
+function kalkulationSpeichern_(kalk, stand) {
+  if (!kalk || !Array.isArray(kalk.bereiche)) throw new Error('Keine Kalkulation übergeben');
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const alt = kalkulationLaden_();
+    if (alt && alt.stand && alt.stand !== stand) {
+      throw new Error('Inzwischen hat jemand anderes gespeichert (' + alt.stand + '). Bitte die Seite neu laden – deine Änderungen vorher notieren.');
+    }
+    kalk.stand = Utilities.formatDate(new Date(), 'Europe/Berlin', 'dd.MM.yyyy HH:mm:ss');
+    const ss = SpreadsheetApp.getActive();
+    const sh = blattLeeren_(ss, BLATT_KALKULATION);
+    sh.getRange(1, 1, 1, 2).setValues([['Daten (JSON – bitte nicht von Hand ändern, wird von der Seite „Kalkulation“ geschrieben)', 'Gespeichert am']]).setFontWeight('bold');
+    sh.getRange(2, 1, 1, 2).setNumberFormat('@').setValues([[JSON.stringify(kalk), kalk.stand]]);
+    // Lesbare Kopie zum Nachschauen im Sheet
+    const kopf = ['Bereich', 'Gruppe', 'Position', 'Menge', 'Einheit', 'Preis je Einheit (€)', 'Summe (€)', 'Status', 'Wer / Anbieter', 'Notiz'];
+    const zeilen = [];
+    kalk.bereiche.forEach(b => (b.gruppen || []).forEach(g => (g.positionen || []).forEach(p => {
+      const menge = zahl_(p.menge), preis = zahl_(p.preis);
+      zeilen.push([b.titel, g.titel, p.was || '', menge === '' ? '' : menge, p.einheit || '', preis === '' ? '' : preis,
+        menge === '' || preis === '' ? '' : Math.round(menge * preis * 100) / 100, p.status || '', p.wer || '', p.notiz || '']);
+    })));
+    sh.getRange(4, 1, 1, kopf.length).setValues([kopf]).setBackground(FARBE_KOPF).setFontColor('#FFFFFF').setFontWeight('bold');
+    if (zeilen.length) sh.getRange(5, 1, zeilen.length, kopf.length).setValues(zeilen);
+    sh.setColumnWidths(1, kopf.length, 150);
+    sh.setColumnWidth(1, 300);
+    return kalk;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function zahl_(v) {
+  if (typeof v === 'number') return v;
+  const s = String(v == null ? '' : v).trim().replace(',', '.');
+  if (s === '') return '';
+  const n = Number(s);
+  return isNaN(n) ? '' : n;
 }
 
 // ---------------------------------------------------------------- Hilfsfunktionen
