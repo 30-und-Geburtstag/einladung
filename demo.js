@@ -92,6 +92,13 @@
       case 'admin.versandMarkieren':
         req.ids.forEach(id => { if (req.zuruecksetzen) delete d.versand[id]; else d.versand[id] = { am: new Date().toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }), medium: req.medium }; });
         sichern(d); break;
+      case 'admin.kalkulationLaden': return { kalkulation: d.kalkulation || null };
+      case 'admin.kalkulationSpeichern': {
+        if (d.kalkulation?.stand && d.kalkulation.stand !== req.stand) throw new Error('Inzwischen hat jemand anderes gespeichert. Bitte die Seite neu laden.');
+        d.kalkulation = { ...req.kalkulation, stand: new Date().toLocaleString('de-DE') };
+        sichern(d);
+        return { kalkulation: d.kalkulation };
+      }
       case 'admin.daten': break;
       default: throw new Error('Unbekannte Aktion');
     }
