@@ -665,12 +665,14 @@ function kalkulationSpeichern_(kalk, stand) {
       sh.getRange(2, 3, 1, stuecke.length - 1).setNumberFormat('@').setValues([stuecke.slice(1)]);
     }
     // Lesbare Kopie zum Nachschauen im Sheet
-    const kopf = ['Bereich', 'Gruppe', 'Position', 'Menge', 'Einheit', 'Preis je Einheit (€)', 'Summe (€)', 'Status', 'Wer / Anbieter', 'Notiz'];
+    const kopf = ['Bereich', 'Gruppe', 'Position', 'Menge', 'Einheit', 'Preis je Einheit (€)', 'Summe (€)', 'Status', 'Wer / Anbieter', 'Notiz', 'Bedarf', 'Inhalt je Einheit', 'Bestellt gesamt'];
     const zeilen = [];
     kalk.bereiche.forEach(b => (b.gruppen || []).forEach(g => (g.positionen || []).forEach(p => {
       const menge = zahl_(p.menge), preis = zahl_(p.preis);
       zeilen.push([b.titel, g.titel, p.was || '', menge === '' ? '' : menge, p.einheit || '', preis === '' ? '' : preis,
-        menge === '' || preis === '' ? '' : Math.round(menge * preis * 100) / 100, p.status || '', p.wer || '', p.notiz || '']);
+        menge === '' || preis === '' ? '' : Math.round(menge * preis * 100) / 100, p.status || '', p.wer || '', p.notiz || '',
+        zahl_(p.bedarf) === '' ? '' : zahl_(p.bedarf) + ' ' + (p.bedarfEinheit || 'l'), zahl_(p.inhalt),
+        menge === '' || zahl_(p.inhalt) === '' ? '' : Math.round(menge * zahl_(p.inhalt) * 100) / 100]);
     })));
     sh.getRange(4, 1, 1, kopf.length).setValues([kopf]).setBackground(FARBE_KOPF).setFontColor('#FFFFFF').setFontWeight('bold');
     if (zeilen.length) sh.getRange(5, 1, zeilen.length, kopf.length).setValues(zeilen);

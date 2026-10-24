@@ -1,10 +1,10 @@
 // Kalkulation: Licht & Tontechnik, Getränke und Skizze (skizze.js) – gemeinsam bearbeitbar, gespeichert im Google Sheet (Blatt „App-Kalkulation“).
 
 const kRoot = document.getElementById('kalkulation');
-const K = { pw: '', daten: null, stand: '', bereich: 'technik', geaendert: false, neu: false };
+const K = { pw: '', daten: null, stand: '', bereich: 'technik', geaendert: false, neu: false, ergaenzt: [] };
 try { K.pw = sessionStorage.getItem('einladung-pw') || ''; K.bereich = sessionStorage.getItem('einladung-kalk-bereich') || K.bereich; } catch { /* egal */ }
 
-const STATUS = ['offen', 'angefragt', 'bestellt', 'erledigt'];
+const STATUS = ['offen', 'angefragt', 'zugesagt', 'bestellt', 'erledigt'];
 
 // Startwerte, solange noch nie gespeichert wurde. Getränke = Ergebnis der Getränke-Kalkulation (planung/…Getraenkekalkulation.xlsx).
 const pos = (was, menge, einheit, notiz = '', wer = '') => ({ was, menge, einheit, preis: '', status: 'offen', wer, notiz });
@@ -102,6 +102,168 @@ const euro = n => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR'
 const summePos = p => (zahl(p.menge) === '' || zahl(p.preis) === '' ? 0 : zahl(p.menge) * zahl(p.preis));
 const summeGruppe = g => g.positionen.reduce((s, p) => s + summePos(p), 0);
 const summeBereich = b => b.gruppen.reduce((s, g) => s + summeGruppe(g), 0);
+const mengeText = n => n.toLocaleString('de-DE', { maximumFractionDigits: 2 });
+
+// ------------------------------------------------------------- Datenstand 2: Bedarf ↔ Bestellung, Kuchen
+
+// Bedarf inkl. Sicherheitszuschlag laut Getränke-Kalkulation (planung/…Getraenkekalkulation.xlsx, Stand 24.10.2026)
+const BEDARF = {
+  'Bier Helles – vom Fass': [25.1, 'l'], 'Kellerbier': [16.1, 'l'], 'Bier Pils': [18.2, 'l'], 'Bier Export': [5.7, 'l'],
+  'Weizen': [11.4, 'l'], 'Radler': [13.9, 'l'], 'Alkoholfreies Bier': [16.8, 'l'],
+  'Weißwein': [7.8, 'l'], 'Rotwein': [1.3, 'l'], 'Sekt': [8.1, 'l'],
+  'Wodka': [0.9, 'l'], 'Gin': [0.6, 'l'], 'Rum': [0.6, 'l'], 'Whisky': [0.4, 'l'], 'Kurze (z. B. Obstler, Jägermeister)': [2.3, 'l'],
+  'Energy Drink': [3.9, 'l'], 'Tonic Water': [3.2, 'l'],
+  'Cola': [19.2, 'l'], 'Cola Zero': [6.1, 'l'], 'Fanta / Limo': [9.2, 'l'], 'Spezi / Mezzo Mix': [6.1, 'l'],
+  'Apfelschorle': [12.3, 'l'], 'Orangensaft': [8.1, 'l'], 'Mangosaft (Bollywood!)': [6.1, 'l'],
+  'Wasser mit Sprudel': [56.5, 'l'], 'Wasser still': [43.3, 'l'], 'Eiswürfel': [21.7, 'kg'],
+  'Kaffeepulver': [0.47, 'kg'], 'Teebeutel': [10, 'Stück'], 'Milch / Kaffeesahne': [0.8, 'l'],
+};
+
+/** Inhalt einer Einheit aus dem Text, z. B. „Kiste 20 × 0,5 l“ → 10, „Fass 30 l“ → 30, „Beutel 2 kg“ → 2. */
+function inhaltAus(einheit) {
+  const t = String(einheit || '').replace(/,/g, '.');
+  let m = t.match(/(\d+(?:\.\d+)?)\s*[×x]\s*(\d+(?:\.\d+)?)\s*(l|kg)\b/i);
+  if (m) return [Math.round(m[1] * m[2] * 100) / 100, m[3]];
+  m = t.match(/(\d+(?:\.\d+)?)\s*(l|kg)\b/i);
+  if (m) return [Number(m[1]), m[2]];
+  if (/^(kg|l|stück)$/i.test(t.trim())) return [1, t.trim()];
+  return ['', ''];
+}
+
+const kuchen = (was, wer, notiz, status = 'zugesagt', menge = 1) => ({ was, menge, einheit: 'Kuchen', preis: '', status, wer, notiz });
+// Aus „App-Antworten Einladungen“ (Stand 24.10.2026) – nur Einladungen mit Zusage
+const KUCHEN_GRUPPEN = () => [
+  { titel: 'Kuchen – fest zugesagt', positionen: [
+    kuchen('Torte', 'Aysel & Robin', 'Selbst'),
+    kuchen('Schmandkuchen + wahrscheinlich Eierlikörkuchen', 'Petra & Jens Nissen', 'Nachmittags da. Bitte an Sahnespender erinnern!', 'zugesagt', 2),
+    kuchen('Brownies', 'Alex, Stefan & Familie', 'Nachmittags da'),
+    kuchen('Apfel-Mango-Crumble', 'Trini, Niklas & Familie', 'Nachmittags da'),
+    kuchen('Zebrakuchen', 'Barbara & Martin', 'Kommen erst abends – eher als Dessert'),
+    kuchen('Überraschung', 'JJ & Begleitung', 'Kommen erst abends – eher als Dessert'),
+    kuchen('Käsekuchen', 'Alex', 'Kommt erst abends – eher als Dessert'),
+    kuchen('Brownies (alternativ Mohrenkopftorte)', 'Leon', 'Kommt erst abends – eher als Dessert'),
+    kuchen('Schoko-Kuchen', 'Sabrina', 'Kommt erst abends – eher als Dessert'),
+    kuchen('Eierlikörkuchen (Marmorkuchen)', 'Justin & Nina', 'Kommen erst abends – eher als Dessert'),
+  ] },
+  { titel: 'Kuchen – optional (nur bei Bedarf fragen)', positionen: [
+    kuchen('Kuchen nach Absprache', 'Mati & Lea', '„Falls als Nachspeise nach dem Buffet noch ein Kuchen benötigt wird: sehr gerne.“', 'offen'),
+    kuchen('Kuchen nach Absprache', 'Robin Schwalm', '„Falls ihr noch einen Kuchen benötigt, sagt Bescheid.“', 'offen'),
+  ] },
+];
+
+// Vorschlagsliste Material (Gästezahlen: 32 nachmittags, 64 abends)
+const MATERIAL = () => ({
+  id: 'material', titel: 'Material',
+  notiz: 'Vorschlagsliste – Kategorien und Zeilen nach Bedarf anpassen, ergänzen oder löschen.',
+  gruppen: [
+    { titel: 'Geschirr & Besteck', positionen: [
+      pos('Kuchenteller', 40, 'Stück', 'Nachmittags 32 Gäste'),
+      pos('Kaffeetassen + Untertassen', 40, 'Stück'),
+      pos('Kuchengabeln', 40, 'Stück'),
+      pos('Teelöffel', 40, 'Stück'),
+      pos('Essteller (Buffet)', 75, 'Stück', 'Abends 64 Gäste + Reserve'),
+      pos('Dessertteller / Schalen', 70, 'Stück'),
+      pos('Messer & Gabeln', 75, 'Set'),
+      pos('Esslöffel / Dessertlöffel', 70, 'Stück'),
+    ] },
+    { titel: 'Gläser', positionen: [
+      pos('Biergläser / Krüge', 70, 'Stück', 'Für Fassbier – evtl. von Getränke Stab leihbar'),
+      pos('Weingläser', 30, 'Stück'),
+      pos('Sektgläser', 70, 'Stück', 'Zum Anstoßen'),
+      pos('Longdrinkgläser', 50, 'Stück'),
+      pos('Wasser-/Saftgläser', 70, 'Stück'),
+      pos('Schnapsgläser', 50, 'Stück'),
+    ] },
+    { titel: 'Küchengeräte', positionen: [
+      pos('Kaffeemaschine / Kaffeekannen', 2, 'Stück', '≈ 8 l Kaffee'),
+      pos('Wasserkocher (Tee)', 1, 'Stück'),
+      pos('Warmhaltebehälter / Chafing Dishes', 4, 'Stück', 'Fürs Buffet'),
+      pos('Sahnespender + Kapseln', 1, 'Stück', 'Petra bittet um Erinnerung'),
+      pos('Kühlschrank / Kühlbox', 1, 'Stück', 'Für Sahne, Milch, Buffet'),
+      pos('Mehrfachsteckdosen Küche', 2, 'Stück'),
+    ] },
+    { titel: 'Servieren & Buffet', positionen: [
+      pos('Tortenheber', 4, 'Stück'),
+      pos('Kuchenmesser', 3, 'Stück'),
+      pos('Servierplatten / Tortenplatten', 10, 'Stück'),
+      pos('Vorlegebesteck', 10, 'Set'),
+      pos('Flaschenöffner / Korkenzieher', 3, 'Stück'),
+      pos('Eiswürfelbehälter + Zange', 2, 'Stück'),
+    ] },
+    { titel: 'Tisch & Deko', positionen: [
+      pos('Tischdecken / Tischläufer', '', 'Stück', 'Anzahl Tische klären'),
+      pos('Servietten', 200, 'Stück'),
+      pos('Kerzen / Teelichter', 30, 'Stück'),
+      pos('Deko Oktoberfest (blau-weiß)', 1, 'Set'),
+      pos('Deko Bollywood (bunt, Lichter)', 1, 'Set'),
+    ] },
+    { titel: 'Verbrauch & Reinigung', positionen: [
+      pos('Müllsäcke', 20, 'Stück'),
+      pos('Spülmittel + Schwämme', 1, 'Set'),
+      pos('Geschirrtücher', 10, 'Stück'),
+      pos('Küchenrolle', 6, 'Rolle'),
+      pos('Alu- & Frischhaltefolie', 1, 'Set'),
+      pos('Dosen / Beutel für Reste', 10, 'Stück'),
+    ] },
+  ],
+});
+
+/** Bringt ältere gespeicherte Stände auf den aktuellen Stand. Gibt zurück, was ergänzt wurde (leer = nichts). */
+function migrieren(d) {
+  const neu = [];
+  if ((d.version || 1) < 2) {
+    const g = d.bereiche.find(b => b.id === 'getraenke');
+    if (g) {
+      g.mitBedarf = true;
+      if (g.titel === 'Getränke') g.titel = 'Getränke & Kuchen';
+      g.gruppen.forEach(gr => gr.positionen.forEach(p => {
+        const notizBedarf = String(p.notiz || '').match(/Bedarf ≈ ([\d,.]+) (l|kg)/);
+        const [bedarf, einheit] = BEDARF[p.was] || (notizBedarf ? [zahl(notizBedarf[1]), notizBedarf[2]] : ['', '']);
+        if (p.bedarf === undefined) { p.bedarf = bedarf; p.bedarfEinheit = einheit; }
+        if (p.inhalt === undefined) p.inhalt = inhaltAus(p.einheit)[0];
+        // Bedarf steht jetzt in eigener Zeile – aus der Notiz entfernen
+        p.notiz = String(p.notiz || '').replace(/,?\s*Bedarf ≈ [\d,.]+ (l|kg)\.?/, '').replace(/^[\s,.]+|[\s,]+$/g, '');
+      }));
+      if (!g.gruppen.some(gr => /kuchen/i.test(gr.titel) && !/kaffee/i.test(gr.titel))) {
+        const i = g.gruppen.findIndex(gr => /kaffee/i.test(gr.titel));
+        g.gruppen.splice(i >= 0 ? i + 1 : g.gruppen.length, 0, ...KUCHEN_GRUPPEN());
+      }
+      neu.push('Bedarf ↔ Bestellung bei den Getränken', 'Kuchen-Liste');
+    }
+  }
+  if ((d.version || 1) < 3 && !d.bereiche.some(b => b.id === 'material')) {
+    d.bereiche.push(MATERIAL());
+    neu.push('Reiter „Material“');
+  }
+  d.version = 3;
+  return neu;
+}
+
+/** „Bedarf 16,1 l → 2 × Kiste 20 × 0,5 l = 20 l · 3,9 l Reserve“ */
+function bedarfText(p) {
+  const bedarf = zahl(p.bedarf), inhalt = zahl(p.inhalt), menge = zahl(p.menge);
+  const e = p.bedarfEinheit || 'l';
+  if (bedarf === '' && inhalt === '') return { text: 'Bedarf und Inhalt je Einheit eintragen, dann wird hier verglichen.', art: 'leer' };
+  const teile = [];
+  if (bedarf !== '') teile.push(`Bedarf ${mengeText(bedarf)} ${e}`);
+  if (menge === '' || inhalt === '') return { text: teile.join('') + ' – Menge oder Inhalt je Einheit fehlt.', art: 'leer' };
+  const gesamt = menge * inhalt;
+  // Bei reinen Einheiten („kg“, „Stück“) kein „0,5 × kg“, sondern direkt „0,5 kg“
+  const nurEinheit = /^(kg|l|stück)$/i.test(String(p.einheit || '').trim());
+  teile.push(nurEinheit ? `→ bestellt ${mengeText(gesamt)} ${e}` : `→ ${mengeText(menge)} × ${p.einheit || 'Einheit'} = ${mengeText(gesamt)} ${e}`);
+  if (bedarf === '') return { text: teile.join(' '), art: 'leer' };
+  const diff = Math.round((gesamt - bedarf) * 100) / 100;
+  if (diff === 0) return { text: teile.join(' ') + ' · passt genau', art: 'ok' };
+  return diff > 0
+    ? { text: teile.join(' ') + ` · ${mengeText(diff)} ${e} Reserve`, art: 'ok' }
+    : { text: teile.join(' ') + ` · ⚠ ${mengeText(-diff)} ${e} zu wenig`, art: 'knapp' };
+}
+
+// Eingeklappte Gruppen merkt sich nur dieser Browser
+const zuKey = (b, g) => b.id + '|' + g.titel;
+let zuGruppen = new Set();
+try { zuGruppen = new Set(JSON.parse(localStorage.getItem('einladung-kalk-zu') || '[]')); } catch { /* egal */ }
+const zuMerken = () => { try { localStorage.setItem('einladung-kalk-zu', JSON.stringify([...zuGruppen])); } catch { /* egal */ } };
 
 function kToast(text) {
   const t = el('div', { class: 'toast', role: 'status' }, text);
@@ -118,7 +280,10 @@ async function kStart() {
     K.neu = !r.kalkulation;
     K.daten = r.kalkulation || VORLAGE();
     K.stand = K.daten.stand || '';
-    K.geaendert = false;
+    // Ältere gespeicherte Stände bekommen Bedarf & Kuchen ergänzt – erst nach „Speichern“ sehen das auch die anderen
+    const ergaenzt = migrieren(K.daten);
+    K.ergaenzt = K.neu ? [] : ergaenzt;
+    K.geaendert = K.ergaenzt.length > 0;
     kZeichnen();
   } catch (e) {
     kLogin(e.message);
@@ -153,10 +318,19 @@ function geaendert() {
 }
 
 function summenAktualisieren() {
+  // Nach Löschen/Verschieben zeigt die Anzeige kurz noch auf alte Stellen – die werden übersprungen, kZeichnen folgt
+  document.querySelectorAll('[data-bedarf]').forEach(x => {
+    const [b, g, p] = x.dataset.bedarf.split('.').map(Number);
+    const pos = K.daten.bereiche[b]?.gruppen[g]?.positionen[p];
+    if (!pos) return;
+    const r = bedarfText(pos);
+    x.textContent = r.text; x.className = 'bedarf-text ' + r.art;
+  });
   document.querySelectorAll('[data-summe]').forEach(x => {
     const [b, g, p] = x.dataset.summe.split('.').map(Number);
-    const ber = K.daten.bereiche[b];
-    const n = p >= 0 ? summePos(ber.gruppen[g].positionen[p]) : g >= 0 ? summeGruppe(ber.gruppen[g]) : summeBereich(ber);
+    const ber = K.daten.bereiche[b], gr = ber?.gruppen[g];
+    if (!ber || (g >= 0 && !gr) || (p >= 0 && !gr.positionen[p])) return;
+    const n = p >= 0 ? summePos(gr.positionen[p]) : g >= 0 ? summeGruppe(gr) : summeBereich(ber);
     x.textContent = p >= 0 && !n ? '–' : euro(n);
   });
   const gesamt = document.querySelector('[data-gesamt]');
@@ -179,6 +353,7 @@ function kZeichnen() {
       } }, b.titel))),
     !window.EINLADUNG_API ? el('div', { class: 'meldung warn' }, 'Demo-Modus: Änderungen werden nur in diesem Browser gespeichert, nichts landet in eurer Tabelle.') : null,
     K.neu ? el('div', { class: 'meldung warn' }, 'Noch nicht gespeichert – das sind die Startwerte. Nach dem ersten „Speichern“ sehen alle mit Passwort denselben Stand.') : null,
+    K.ergaenzt.length ? el('div', { class: 'meldung warn' }, `Neu ergänzt: ${K.ergaenzt.join(', ')}. Bitte einmal „Speichern“, damit es auch die anderen sehen.`) : null,
     skizze ? null : el('div', { class: 'kacheln' },
       bereiche.map((b, i) => el('div', { class: 'kachel' }, el('div', { class: 'zahl', 'data-summe': `${i}.-1.-1` }, euro(summeBereich(b))), el('div', { class: 'was' }, b.titel))),
       el('div', { class: 'kachel' }, el('div', { class: 'zahl', 'data-gesamt': '' }), el('div', { class: 'was' }, 'Gesamt (nur Positionen mit Preis)'))),
@@ -198,35 +373,48 @@ function bereichAnsicht(b, bi) {
     el('div', { class: 'frage' }, el('label', {}, 'Notiz'), notiz),
     b.gruppen.map((g, gi) => gruppeAnsicht(b, bi, g, gi)),
     el('div', { class: 'aktionen' }, el('button', { class: 'knopf zweit', onclick: () => {
-      b.gruppen.push({ titel: 'Neue Gruppe', positionen: [pos('', '', '')] });
+      b.gruppen.push({ titel: 'Neue Kategorie', positionen: [pos('', '', '')] });
       geaendert(); kZeichnen();
       setTimeout(() => { const t = kRoot.querySelectorAll('.gruppe-titel-feld'); t[t.length - 1]?.select(); }, 30);
-    } }, '+ Gruppe')));
+    } }, '+ Kategorie')));
 }
 
 function gruppeAnsicht(b, bi, g, gi) {
-  const titel = el('input', { type: 'text', class: 'gruppe-titel-feld', value: g.titel, 'aria-label': 'Name der Gruppe',
-    oninput: e => { g.titel = e.target.value; geaendert(); } });
+  const zu = zuGruppen.has(zuKey(b, g));
+  const titel = el('input', { type: 'text', class: 'gruppe-titel-feld', value: g.titel, 'aria-label': 'Name der Kategorie',
+    oninput: e => {
+      const war = zuKey(b, g); g.titel = e.target.value;
+      if (zuGruppen.delete(war)) { zuGruppen.add(zuKey(b, g)); zuMerken(); }
+      geaendert();
+    } });
   const verschiebeGruppe = d => { const j = gi + d; if (j < 0 || j >= b.gruppen.length) return; [b.gruppen[gi], b.gruppen[j]] = [b.gruppen[j], b.gruppen[gi]]; geaendert(); kZeichnen(); };
-  return el('div', { class: 'kalk-gruppe' },
-    el('div', { class: 'kalk-gruppe-kopf' }, titel,
+  const umschalten = () => { zu ? zuGruppen.delete(zuKey(b, g)) : zuGruppen.add(zuKey(b, g)); zuMerken(); kZeichnen(); };
+  // Bedarfszeile, sobald in der Gruppe irgendwo ein Bedarf steht (dann auch für neue Zeilen)
+  const mitBedarf = b.mitBedarf && g.positionen.some(p => zahl(p.bedarf) !== '');
+  return el('div', { class: 'kalk-gruppe' + (zu ? ' zu' : '') },
+    el('div', { class: 'kalk-gruppe-kopf' },
+      el('button', { class: 'aufklapper', 'aria-expanded': String(!zu), 'aria-label': (zu ? 'Aufklappen: ' : 'Zuklappen: ') + g.titel, onclick: umschalten }, '›'),
+      titel,
+      el('span', { class: 'leise' }, `${g.positionen.length} ${g.positionen.length === 1 ? 'Zeile' : 'Zeilen'}`),
       el('span', { class: 'kalk-summe', 'data-summe': `${bi}.${gi}.-1` }),
-      el('button', { class: 'knopf zweit klein', title: 'Gruppe nach oben', 'aria-label': 'Gruppe nach oben', onclick: () => verschiebeGruppe(-1) }, '↑'),
-      el('button', { class: 'knopf zweit klein', title: 'Gruppe nach unten', 'aria-label': 'Gruppe nach unten', onclick: () => verschiebeGruppe(1) }, '↓'),
-      el('button', { class: 'knopf zweit klein', onclick: () => {
-        if (!confirm(`Gruppe „${g.titel}“ mit ${g.positionen.length} Positionen löschen?`)) return;
-        b.gruppen.splice(gi, 1); geaendert(); kZeichnen();
-      } }, 'Gruppe löschen')),
-    el('div', { class: 'kalk-kopfzeile', 'aria-hidden': 'true' },
-      ['Position', 'Menge', 'Einheit', 'Preis/Einheit €', 'Summe', 'Status', 'Wer / Anbieter', 'Notiz', ''].map(t => el('span', {}, t))),
-    g.positionen.map((p, pi) => zeileAnsicht(b, bi, g, gi, p, pi)),
-    el('button', { class: 'knopf zweit klein', style: 'margin-top:8px', onclick: () => {
-      g.positionen.push(pos('', '', '')); geaendert(); kZeichnen();
-      setTimeout(() => { const z = kRoot.querySelectorAll(`[data-gruppe="${gi}"] .f-was`); z[z.length - 1]?.focus(); }, 30);
-    } }, '+ Position'));
+      zu ? null : [
+        el('button', { class: 'knopf zweit klein', title: 'Kategorie nach oben', 'aria-label': 'Kategorie nach oben', onclick: () => verschiebeGruppe(-1) }, '↑'),
+        el('button', { class: 'knopf zweit klein', title: 'Kategorie nach unten', 'aria-label': 'Kategorie nach unten', onclick: () => verschiebeGruppe(1) }, '↓'),
+        el('button', { class: 'knopf zweit klein', onclick: () => {
+          if (!confirm(`Kategorie „${g.titel}“ mit ${g.positionen.length} Zeilen löschen?`)) return;
+          b.gruppen.splice(gi, 1); geaendert(); kZeichnen();
+        } }, 'Kategorie löschen')]),
+    zu ? null : [
+      el('div', { class: 'kalk-kopfzeile', 'aria-hidden': 'true' },
+        ['Position', 'Menge', 'Einheit', 'Preis/Einheit €', 'Summe', 'Status', 'Wer / Anbieter', 'Notiz', ''].map(t => el('span', {}, t))),
+      ...g.positionen.map((p, pi) => zeileAnsicht(b, bi, g, gi, p, pi, mitBedarf)),
+      el('button', { class: 'knopf zweit klein', style: 'margin-top:8px', onclick: () => {
+        g.positionen.push(pos('', '', '')); geaendert(); kZeichnen();
+        setTimeout(() => { const z = kRoot.querySelectorAll(`[data-gruppe="${gi}"] .f-was`); z[z.length - 1]?.focus(); }, 30);
+      } }, '+ Zeile')]);
 }
 
-function zeileAnsicht(b, bi, g, gi, p, pi) {
+function zeileAnsicht(b, bi, g, gi, p, pi, mitBedarf) {
   const feld = (key, label, attrs = {}, alsZahl = false) => el('input', {
     type: 'text', value: alsZahl ? zahlText(p[key]) : (p[key] ?? ''), 'aria-label': label, placeholder: label, ...attrs,
     oninput: e => { p[key] = alsZahl ? zahl(e.target.value) : e.target.value; geaendert(); },
@@ -235,10 +423,17 @@ function zeileAnsicht(b, bi, g, gi, p, pi) {
     onchange: e => { p.status = e.target.value; e.target.className = 'status-' + p.status; geaendert(); } },
     STATUS.map(s => el('option', { value: s, selected: s === (p.status || 'offen') }, s)));
   const schieben = d => { const j = pi + d; if (j < 0 || j >= g.positionen.length) return; [g.positionen[pi], g.positionen[j]] = [g.positionen[j], g.positionen[pi]]; geaendert(); kZeichnen(); };
+  const einheitFeld = feld('einheit', 'Einheit');
+  einheitFeld.addEventListener('change', () => {
+    // Inhalt je Einheit automatisch übernehmen, wenn er sich aus dem Text ablesen lässt (z. B. „Kiste 20 × 0,5 l“)
+    const [n] = inhaltAus(p.einheit);
+    if (mitBedarf && n !== '' && n !== zahl(p.inhalt)) { p.inhalt = n; geaendert(); kZeichnen(); }
+  });
+  if (mitBedarf && !p.bedarfEinheit) p.bedarfEinheit = 'l';
   return el('div', { class: 'kalk-zeile', 'data-gruppe': String(gi) },
     feld('was', 'Position', { class: 'f-was' }),
     feld('menge', 'Menge', { inputmode: 'decimal', class: 'f-zahl' }, true),
-    feld('einheit', 'Einheit'),
+    einheitFeld,
     feld('preis', 'Preis je Einheit (€)', { inputmode: 'decimal', class: 'f-zahl' }, true),
     el('span', { class: 'kalk-summe', 'data-summe': `${bi}.${gi}.${pi}` }),
     status,
@@ -247,10 +442,15 @@ function zeileAnsicht(b, bi, g, gi, p, pi) {
     el('div', { class: 'kalk-knoepfe' },
       el('button', { class: 'knopf zweit klein', title: 'Nach oben', 'aria-label': 'Nach oben', onclick: () => schieben(-1) }, '↑'),
       el('button', { class: 'knopf zweit klein', title: 'Nach unten', 'aria-label': 'Nach unten', onclick: () => schieben(1) }, '↓'),
-      el('button', { class: 'knopf zweit klein', title: 'Position löschen', 'aria-label': 'Position löschen', onclick: () => {
-        if ((p.was || p.notiz) && !confirm(`„${p.was || 'Position'}“ löschen?`)) return;
+      el('button', { class: 'knopf zweit klein', title: 'Zeile entfernen', 'aria-label': 'Zeile entfernen', onclick: () => {
+        if ((p.was || p.notiz) && !confirm(`Zeile „${p.was || 'ohne Namen'}“ entfernen?`)) return;
         g.positionen.splice(pi, 1); geaendert(); kZeichnen();
-      } }, '×')));
+      } }, '×')),
+    mitBedarf ? el('div', { class: 'kalk-bedarf' },
+      el('label', {}, 'Bedarf', feld('bedarf', 'Bedarf', { inputmode: 'decimal', class: 'f-klein' }, true),
+        feld('bedarfEinheit', 'Einheit des Bedarfs', { class: 'f-mini' })),
+      el('label', {}, 'Inhalt je Einheit', feld('inhalt', 'Inhalt je Einheit', { inputmode: 'decimal', class: 'f-klein' }, true)),
+      el('span', { 'data-bedarf': `${bi}.${gi}.${pi}` })) : null);
 }
 
 async function kSpeichern(ev) {
