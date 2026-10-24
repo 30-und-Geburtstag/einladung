@@ -7,7 +7,8 @@
 - **Verwaltung** – `…/admin.html`, mit Passwort. Übersicht, Einladungen (Begleittext kopieren,
   persönliche Karte mit QR herunterladen), Fragen bearbeiten, Einstellungen.
 - **Kalkulation** – `…/kalkulation.html` (auch über „Kalkulation →“ in der Verwaltung), gleiches Passwort.
-  Zwei Bereiche: **Licht & Tontechnik** und **Getränke** – Positionen, Mengen, Preise, Status direkt auf der Seite ändern,
+  Drei Reiter: **Licht & Tontechnik**, **Getränke & Kuchen** und **Material** – Kategorien und Zeilen selbst anlegen,
+  ein-/ausklappen und entfernen; Mengen, Preise, Status direkt auf der Seite ändern,
   dann „Speichern“. Gespeichert wird im Blatt **App-Kalkulation** (dort auch als lesbare Tabelle).
   Hat jemand anderes inzwischen gespeichert, warnt die Seite statt zu überschreiben.
   Die Getränke-Startwerte stammen aus `planung/2026-10-24_Getraenkekalkulation.xlsx` (liegt nur lokal, nicht im Repo).
