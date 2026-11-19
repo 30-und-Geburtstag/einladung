@@ -215,4 +215,22 @@ assert.strictEqual(grossGeladen.skizze.plaene[0].objekte.length, 1500);
 assert.strictEqual(grossGeladen.skizze.plaene[0].objekte[1499].y, 2998);
 assert.ok(shK.rows.some(r => r[0] === 'Test' && r[1] === 'Stuhl' && r[2] === 1500), 'Skizze lesbar im Sheet');
 console.log('✓ Kalkulation: große Daten (Skizze) über mehrere Zellen, Skizze lesbar im Sheet');
+// 10. Gesperrte Einladungslinks geben keine Namen mehr heraus
+r = post({ aktion: 'gast.laden', code: code1 });
+assert(r.ok && r.geschlossen === true, 'gesperrt');
+assert(!r.einheit, 'keine Personendaten bei gesperrtem Link');
+console.log('✓ Gesperrte Links zeigen nur noch den Abschluss');
+
+// 11. Geschenkliste speichern/laden, Schutz vor Überschreiben
+assert.strictEqual(post({ aktion: 'admin.geschenkeLaden', passwort: pw }).geschenke, null);
+let g = post({ aktion: 'admin.geschenkeSpeichern', passwort: pw, stand: '', geschenke: { eintraege: [
+  { id: 'g1', von: 'Max & Begleitung', einheit: 'E001', geschenk: 'Geld + Karte', betrag: '50', dank: 'Danke!' },
+  { id: 'g2', von: 'Erika', einheit: 'E002', geschenk: 'Wein', betrag: '' }] } });
+assert(g.ok, g.fehler);
+const gStand = g.geschenke.stand;
+assert.strictEqual(post({ aktion: 'admin.geschenkeLaden', passwort: pw }).geschenke.eintraege.length, 2);
+assert(sheets['App-Geschenke'].rows.some(row => row[2] === 'Summe' && row[3] === 50), 'Summe in der lesbaren Tabelle');
+assert.strictEqual(post({ aktion: 'admin.geschenkeSpeichern', passwort: pw, stand: 'alt', geschenke: { eintraege: [] } }).ok, false, 'veralteter Stand wird abgelehnt');
+assert(post({ aktion: 'admin.geschenkeSpeichern', passwort: pw, stand: gStand, geschenke: { eintraege: [] } }).ok);
+console.log('✓ Geschenkliste: speichern, laden, Summe, kein unbemerktes Überschreiben');
 console.log('\nAlle Tests bestanden.');

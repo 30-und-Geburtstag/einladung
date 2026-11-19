@@ -162,6 +162,9 @@ function doPost(e) {
 
 const AKTIONEN = {
   'gast.laden': req => {
+    // Nach der Feier: Einladungslinks gesperrt – keine Namen/Antworten mehr herausgeben, nur den Abschlusstext
+    const st = oeffentlicheEinstellungen_();
+    if (!st.offen) return { geschlossen: true, einstellungen: { abschluss: st.abschluss } };
     const einheit = einheitPerCode_(req.code);
     return { einheit: einheitFuerGast_(einheit), fragen: aktiveFragen_(), einstellungen: oeffentlicheEinstellungen_() };
   },
@@ -174,6 +177,8 @@ const AKTIONEN = {
   'admin.einstellungenSpeichern': req => { einstellungenSpeichern_(req.einstellungen); codesErzeugen_(); return adminDaten_(); },
   'admin.codesErzeugen': () => { codesErzeugen_(); return adminDaten_(); },
   'admin.kalkulationLaden': () => ({ kalkulation: kalkulationLaden_() }),
+  'admin.geschenkeLaden': () => ({ geschenke: geschenkeLaden_() }),
+  'admin.geschenkeSpeichern': req => ({ geschenke: geschenkeSpeichern_(req.geschenke, req.stand) }),
   'admin.kalkulationSpeichern': req => ({ kalkulation: kalkulationSpeichern_(req.kalkulation, req.stand) }),
 };
 
@@ -394,6 +399,7 @@ function oeffentlicheEinstellungen_() {
     unsicherErlaubt: String(st['Unsicher erlauben']).toLowerCase() === 'ja',
     begruessung: st['Begrüßungstext'] || '',
     danke: st['Danketext'] || '',
+    abschluss: st['Abschlusstext'] || '',
   };
 }
 
@@ -703,6 +709,58 @@ function kalkulationSpeichern_(kalk, stand) {
     sh.setColumnWidths(1, kopf.length, 150);
     sh.setColumnWidth(1, 300);
     return kalk;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ---------------------------------------------------------------- Geschenke & Dankesnachrichten
+
+const BLATT_GESCHENKE = 'App-Geschenke';
+
+/** Gespeicherte Geschenkliste (JSON in A2 von „App-Geschenke“, Fortsetzung ab C2) – null, solange noch nie gespeichert. */
+function geschenkeLaden_() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(BLATT_GESCHENKE);
+  if (!sh) return null;
+  const zeile = sh.getRange(2, 1, 1, Math.max(3, sh.getLastColumn())).getValues()[0];
+  const json = [zeile[0]].concat(zeile.slice(2)).map(v => String(v || '')).join('');
+  return json ? JSON.parse(json) : null;
+}
+
+function geschenkeSpeichern_(daten, stand) {
+  if (!daten || !Array.isArray(daten.eintraege)) throw new Error('Keine Geschenkliste übergeben');
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const alt = geschenkeLaden_();
+    if (alt && alt.stand && alt.stand !== stand) {
+      throw new Error('Inzwischen hat jemand anderes gespeichert (' + alt.stand + '). Bitte die Seite neu laden – deine Änderungen vorher notieren.');
+    }
+    daten.stand = Utilities.formatDate(new Date(), 'Europe/Berlin', 'dd.MM.yyyy HH:mm:ss');
+    const ss = SpreadsheetApp.getActive();
+    const sh = blattLeeren_(ss, BLATT_GESCHENKE);
+    sh.getRange(1, 1, 1, 2).setValues([['Daten (JSON – bitte nicht von Hand ändern, wird von der Seite „Geschenke“ geschrieben)', 'Gespeichert am']]).setFontWeight('bold');
+    const json = JSON.stringify(daten);
+    const stuecke = [];
+    for (let i = 0; i < json.length; i += KALK_STUECK) stuecke.push(json.slice(i, i + KALK_STUECK));
+    sh.getRange(2, 1, 1, 2).setNumberFormat('@').setValues([[stuecke[0], daten.stand]]);
+    if (stuecke.length > 1) sh.getRange(2, 3, 1, stuecke.length - 1).setNumberFormat('@').setValues([stuecke.slice(1)]);
+    // Lesbare Tabelle zum Nachschauen
+    const kopf = ['Von', 'Einladungseinheit-ID', 'Geschenk', 'Betrag (€)', 'Notiz', 'Dankesnachricht', 'Dank verschickt', 'Verschickt am'];
+    const zeilen = daten.eintraege.map(e => [e.von || '', e.einheit || '', e.geschenk || '', zahl_(e.betrag), e.notiz || '', e.dank || '',
+      e.verschickt ? 'Ja' : 'Nein', e.verschicktAm || '']);
+    const summe = daten.eintraege.reduce((s, e) => s + (zahl_(e.betrag) || 0), 0);
+    sh.getRange(4, 1, 1, kopf.length).setValues([kopf]).setBackground(FARBE_KOPF).setFontColor('#FFFFFF').setFontWeight('bold');
+    if (zeilen.length) {
+      sh.getRange(5, 1, zeilen.length, kopf.length).setValues(zeilen).setWrap(true).setVerticalAlignment('top');
+      sh.getRange(5, 4, zeilen.length, 1).setNumberFormat('#,##0.00 €');
+    }
+    sh.getRange(5 + zeilen.length, 3, 1, 2).setValues([['Summe', summe]]).setFontWeight('bold');
+    sh.getRange(5 + zeilen.length, 4).setNumberFormat('#,##0.00 €');
+    sh.setColumnWidths(1, kopf.length, 150);
+    sh.setColumnWidth(3, 260);
+    sh.setColumnWidth(6, 420);
+    return daten;
   } finally {
     lock.releaseLock();
   }

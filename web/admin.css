@@ -234,3 +234,14 @@ select.status-erledigt { border-color: #4d7a4a; color: #9fd59b; }
   .sk-syms { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
   .sk-flaeche { height: 62vh; }
 }
+
+/* Geschenke & Dank */
+.geschenk-karte { margin: 12px 0; }
+.geschenk-karte.verschickt { border-color: #4d7a4a; }
+.g-kopf { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.g-kopf .g-von { flex: 1 1 240px; font-weight: 500; color: var(--gold-hell); font-size: 18px; }
+.g-raster { display: grid; grid-template-columns: minmax(200px, 2fr) 120px minmax(180px, 1.4fr) minmax(160px, 1.4fr); gap: 10px 12px; margin: 10px 0 6px; }
+@media (max-width: 760px) { .g-raster { grid-template-columns: 1fr 1fr; } }
+.g-feld { display: block; }
+.g-feld .l { display: block; font-size: 13px; color: var(--text2); margin-bottom: 3px; }
+.geschenk-karte textarea { min-height: 110px; line-height: 1.45; }

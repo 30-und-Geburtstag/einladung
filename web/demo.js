@@ -89,6 +89,11 @@
         sichern(d); break;
       case 'admin.codesErzeugen': break;
       case 'admin.tabellenAktualisieren': break;
+      case 'admin.geschenkeLaden': return { geschenke: d.geschenke || null };
+      case 'admin.geschenkeSpeichern':
+        if (d.geschenke && d.geschenke.stand !== req.stand) throw new Error('Inzwischen hat jemand anderes gespeichert.');
+        d.geschenke = { ...req.geschenke, stand: new Date().toLocaleString('de-DE') }; sichern(d);
+        return { geschenke: d.geschenke };
       case 'admin.versandMarkieren':
         req.ids.forEach(id => { if (req.zuruecksetzen) delete d.versand[id]; else d.versand[id] = { am: new Date().toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }), medium: req.medium }; });
         sichern(d); break;

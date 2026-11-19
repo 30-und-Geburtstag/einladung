@@ -54,11 +54,12 @@ const neueZeiten = t => String(t)
   .replace(/ab 19 Uhr/g, 'ab 18 Uhr');
 
 const EINSTELLUNGEN_FELDER = [
-  ['Formular offen', 'jn', 'Wenn „Nein“, können Gäste nichts mehr eintragen (z. B. nach dem Anmeldeschluss).'],
+  ['Formular offen', 'jn', 'Wenn „Nein“, sind alle Einladungslinks gesperrt: Gäste sehen nur noch den Abschlusstext, keine Namen und Antworten mehr, und können nichts ändern.'],
   ['Anmeldeschluss', 'text', 'Wird den Gästen angezeigt, z. B. 21.10.2026.'],
   ['Unsicher erlauben', 'jn', 'Zusätzlich zu „Bin dabei“ / „Leider nicht“ auch „Noch unsicher“ anbieten.'],
   ['Begrüßungstext', 'lang', 'Steht oben auf der Anmeldeseite.'],
   ['Danketext', 'lang', 'Erscheint nach dem Absenden.'],
+  ['Abschlusstext', 'lang', 'Erscheint auf den Einladungslinks, sobald „Formular offen“ auf „Nein“ steht (Links gesperrt).'],
   ['Webseiten-Adresse', 'text', 'Adresse der Anmeldeseite – daraus werden die persönlichen Links gebaut.'],
   ['Begleittext Nur Nachmittag', 'vorlage', '{LINK} wird durch den persönlichen Link ersetzt.'],
   ['Begleittext Nachmittag + Abend', 'vorlage', ''],
@@ -119,7 +120,8 @@ function zeichneAdmin() {
   setzen(root, 
     el('nav', { class: 'tabs', role: 'tablist' }, Object.entries(tabs).map(([k, t]) =>
       el('button', { role: 'tab', 'aria-selected': String(A.tab === k), onclick: () => tabWechsel(k) }, t)),
-      el('a', { class: 'tab-link', href: 'kalkulation.html' }, 'Kalkulation →')),
+      el('a', { class: 'tab-link', href: 'kalkulation.html' }, 'Kalkulation →'),
+      el('a', { class: 'tab-link', href: 'geschenke.html' }, 'Geschenke →')),
     !window.EINLADUNG_API ? el('div', { class: 'meldung warn' }, 'Demo-Modus: Es werden nur Beispieldaten in diesem Browser gespeichert, nichts landet in eurer Tabelle.') : null,
     inhalt);
 }
