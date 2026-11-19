@@ -55,6 +55,8 @@ async function start() {
   }
   try {
     const d = await api({ aktion: 'gast.laden', code });
+    // Nach der Feier sind die Einladungslinks gesperrt: nur noch ein Gruß, keine Namen oder Antworten
+    if (d.geschlossen || !d.einstellungen?.offen) return zeichneAbschluss(d.einstellungen?.abschluss);
     zustand.daten = d;
     zustand.personen = d.einheit.personen.map(p => ({
       id: p.id,
@@ -72,6 +74,15 @@ async function start() {
 }
 
 function gueltig(w) { return ['Ja', 'Nein', 'Unsicher'].includes(w) ? w : ''; }
+
+const ABSCHLUSS_STANDARD = 'Die Feier ist vorbei – und sie war wunderschön! Danke, dass ihr mit uns gefeiert habt. Die Anmeldung ist geschlossen.';
+
+function zeichneAbschluss(text) {
+  setzen(app,
+    el('h2', {}, 'Danke für einen unvergesslichen Abend ', el('span', { class: 'herz' }, '♥')),
+    el('p', { class: 'mitte' }, text || ABSCHLUSS_STANDARD),
+    el('p', { class: 'mitte namen', style: 'font-size:28px;margin-top:18px' }, 'Aysel & Robin'));
+}
 
 function zeichnen() {
   const { daten } = zustand;
